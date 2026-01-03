@@ -1,12 +1,37 @@
 version: '3.8'
 
 services:
-  dev:
-    build: .
+  frontend:
+    build:
+      context: ./frontend
     ports:
       - "5173:5173"
     volumes:
-      - .:/app
+      - ./frontend:/app
       - /app/node_modules
     environment:
       - VITE_HOST=0.0.0.0
+      # Points backed API to backend service name (Docker DNS)
+      # - VITE_API_URL=http://backend:8000
+    # depends_on:
+    #   - serviceName
+
+  # Data Layer Service
+  data-service:
+    build:
+      context: ./backend/booking-data
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/booking-data/.env
+    ports:
+      - "3003:3003"
+
+  # dev:
+  #   build: .
+  #   ports:
+  #     - "5173:5173"
+  #   volumes:
+  #     - .:/app
+  #     - /app/node_modules
+  #   environment:
+  #     - VITE_HOST=0.0.0.0
