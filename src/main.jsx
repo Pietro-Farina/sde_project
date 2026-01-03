@@ -13,20 +13,36 @@
 //   </StrictMode>
 // );
 
-import React from "react";
+import React, { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router";
 import "antd/dist/reset.css";
 import "./index.css";
 import App from "./App.jsx";
+import { ThemeProvider } from "./app/providers/ThemeProvider.jsx";
+import { ResponsiveProvider } from "./app/providers/ResponsiveProvider.jsx";
+import { App as AppProvider } from "antd";
+import AppLayout from "./components/AppLayout.jsx";
+import { SidebarMenu } from "./components/SidebarMenu.jsx";
 
 const root = document.getElementById("root");
 
 ReactDOM.createRoot(root).render(
-  <BrowserRouter>
-    <Routes>
-      <Route path="/" element={<App />} />
-    </Routes>
-  </BrowserRouter>,
+	<StrictMode>
+		<BrowserRouter>
+			{/* <Provider store={store}> */}
+				<ThemeProvider>
+					<ResponsiveProvider>
+						<AppProvider>
+                            <AppLayout sidebarContent={SidebarMenu}>
+                                <Routes>
+                                    <Route path="*" element={<App />} />
+                                </Routes>
+                            </AppLayout>
+						</AppProvider>
+					</ResponsiveProvider>
+				</ThemeProvider>
+			{/* </Provider> */}
+		</BrowserRouter>
+	</StrictMode>
 );
-

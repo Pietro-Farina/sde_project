@@ -1,0 +1,38 @@
+[
+  {
+    "key": "bk_001",
+    "code": "BK-2025-0142",
+    "course": "Idrogag",
+    "customer": "pietro.farina@email.com",
+    "date": "2025-02-10T09:30:00",
+    "price": 120,
+    "status": "paid"
+  },
+  {
+    "key": "bk_002",
+    "code": "BK-2025-0143",
+    "course": "Idrogag",
+    "customer": "luca.verdi@email.com",
+    "date": "2025-02-10T14:00:00",
+    "price": 120,
+    "status": "unpaid"
+  },
+  {
+    "key": "bk_003",
+    "code": "BK-2025-0211",
+    "course": "React Fundamentals",
+    "customer": "sara.neri@email.com",
+    "date": "2025-03-01T18:00:00",
+    "price": 180,
+    "status": "confirmed"
+  },
+  {
+    "key": "bk_004",
+    "code": "BK-2025-0256",
+    "course": "React Fundamentals",
+    "customer": "marco.russo@email.com",
+    "date": "2025-03-05T10:00:00",
+    "price": 180,
+    "status": "cancelled"
+  }
+]

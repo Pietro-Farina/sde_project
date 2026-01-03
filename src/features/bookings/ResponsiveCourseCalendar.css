@@ -1,0 +1,49 @@
+.calendar-grid-desktop {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 16px;
+    width: 100%;
+    grid-auto-rows: 1fr;
+}
+
+.calendar-grid-tablet {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    width: 100%;
+    grid-auto-rows: 1fr;
+}
+
+.day-column {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.slots {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.slot-item {
+    width: 100%;
+    max-width: none;
+    padding: 0px;
+    min-height: 0;
+}
+
+.day-title {
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.collapsable-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    width: 100%;
+}

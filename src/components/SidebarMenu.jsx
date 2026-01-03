@@ -18,6 +18,11 @@ export const SidebarMenu = (
         icon: <CalendarOutlined />,
         label: "Calendar",
       },
+      {
+        key: "/login",
+        icon: <CalendarOutlined />,
+        label: "Login",
+      },
     ]}
   />
 );
