@@ -8,7 +8,7 @@ const { connectDB } = require('./config/dbConn')
 const mongoose = require('mongoose')
 
 const app = express();
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3002;
 
 // app.use(cors(corsOptions));
 app.use(cors());
