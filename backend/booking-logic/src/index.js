@@ -17,7 +17,7 @@ app.get('/health', (req, res) => {
 });
 
 // Routes
-app.use('/api/business', bookingRoutes);
+app.use('/api/business/bookings', bookingRoutes);
 
 app.listen(PORT, () => {
   console.log(`Business Service running on port ${PORT}`);
