@@ -17,7 +17,8 @@ function getDayKey(dateString) {
 
 const { Title, Text } = Typography;
 
-export function StepReview({ slots }) {
+export function StepReview({ selectedSlots, selectedSlotsIds, course }) {
+
 	return (
 		<Card>
 			<Title level={3}>Review your booking</Title>
@@ -28,13 +29,13 @@ export function StepReview({ slots }) {
 			</Text>
 
             <br /><br />
-            <Text strong>Selected Course: Course Name</Text>
+            <Text strong>Selected Course: {course.name}</Text>
             <br />
 			<Text strong>Selected Slots:</Text>
 			<List
-				dataSource={slots}
+				dataSource={selectedSlots}
 				renderItem={(slot) => (
-					<List.Item key={slot.id} style={{ paddingLeft: 15 }}>
+					<List.Item key={slot._id} style={{ paddingLeft: 15 }}>
 						{"  -  "}<Text strong>{getDayKey(slot.start)}</Text>
 						{": "}
 						{new Date(slot.start).toLocaleTimeString([], {

@@ -21,6 +21,8 @@ import "./index.css";
 import App from "./App.jsx";
 import { ThemeProvider } from "./app/providers/ThemeProvider.jsx";
 import { ResponsiveProvider } from "./app/providers/ResponsiveProvider.jsx";
+import { Provider } from "react-redux";
+import { store } from "./app/store";
 import { App as AppProvider } from "antd";
 import AppLayout from "./components/AppLayout.jsx";
 import { SidebarMenu } from "./components/SidebarMenu.jsx";
@@ -30,7 +32,7 @@ const root = document.getElementById("root");
 ReactDOM.createRoot(root).render(
 	<StrictMode>
 		<BrowserRouter>
-			{/* <Provider store={store}> */}
+			<Provider store={store}>
 				<ThemeProvider>
 					<ResponsiveProvider>
 						<AppProvider>
@@ -42,7 +44,7 @@ ReactDOM.createRoot(root).render(
 						</AppProvider>
 					</ResponsiveProvider>
 				</ThemeProvider>
-			{/* </Provider> */}
+			</Provider>
 		</BrowserRouter>
 	</StrictMode>
 );

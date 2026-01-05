@@ -5,20 +5,41 @@ import { StepSelect } from "./StepSelect";
 import { StepReview } from "./StepReview";
 import { StepPayment } from "./StepPayment";
 import { useSlots } from "../../hooks/useSlots";
+import { useParams } from "react-router";
+import { useGetCourseByIdQuery } from "../courses/coursesApiSlice";
 
 const steps = [{ title: "Select" }, { title: "Review" }, { title: "Payment" }];
 
 export default function CourseBookingPage() {
 	const [current, setCurrent] = useState(0);
-	const [selectedSlots, setSelectedSlots] = useState([]);
+	const [selectedSlotsIds, setSelectedSlotsIds] = useState([]);
     const { slots } = useSlots()
 
-	const canContinue = useMemo(() => {
-		if (current === 0) return selectedSlots.length > 0;
-		return true;
-	}, [current, selectedSlots]);
+    // id corso
+	const { id } = useParams();
+    const {
+        data: course,
+        isLoading,
+        isSuccess,
+        isError,
+        error,
+    } = useGetCourseByIdQuery(id, { skip: !id });
 
-    console.log(selectedSlots)
+	const canContinue = useMemo(() => {
+		if (current === 0) return selectedSlotsIds.length > 0;
+		return true;
+	}, [current, selectedSlotsIds]);
+
+    console.log(selectedSlotsIds)
+    const selectedSlots = useMemo(() => {
+        return selectedSlotsIds.map(id => course?.slots.find(slot => slot._id === id))
+    }, [selectedSlotsIds, course])
+
+    if (!course) {
+        return <Card>Loading...</Card>
+    }
+
+    const userId = "648a1f4e2f8fb814c8d6f9b1"; // TODO: get from auth
 
 	return (
 		<>
@@ -32,22 +53,22 @@ export default function CourseBookingPage() {
 			{/* Step content */}
 			{current === 0 && (
 				<StepSelect
-					selectedSlots={selectedSlots}
-					onChange={setSelectedSlots}
-                    slots={slots}
+					selectedSlotsIds={selectedSlotsIds}
+					setSelectedSlotsIds={setSelectedSlotsIds}
+                    course={course}
 				/>
 			)}
 
-			{current === 1 && <StepReview slots={selectedSlots.map(id => slots.find(slot => slot.id === id))} />}
+			{current === 1 && <StepReview selectedSlots={selectedSlots} course={course} />}
 
-			{current === 2 && <StepPayment slots={selectedSlots.map(id => slots.find(slot => slot.id === id))} />}
+			{current === 2 && <StepPayment selectedSlots={selectedSlots} course={course} />}
 
 			{/* Sticky / bottom guide */}
 			<SelectionGuide
 				step={current}
-				slots={selectedSlots.map(id => slots.find(slot => slot.id === id))}
-				canContinue={canContinue}
-                setSelectedSlots={setSelectedSlots}
+				selectedSlots={selectedSlots}
+                canContinue={canContinue}
+                setSelectedSlotsIds={setSelectedSlotsIds}
 				onNext={() => setCurrent((s) => s + 1)}
 				onBack={() => setCurrent((s) => s - 1)}
 			/>

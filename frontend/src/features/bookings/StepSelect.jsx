@@ -3,11 +3,11 @@ import CourseCalendar from "./CourseCalendar";
 import ResponsiveCourseCalendar from "./ResponsiveCourseCalendar";
 
 const { Title, Text } = Typography;
-export function StepSelect({ selectedSlots, onChange, slots }) {
+export function StepSelect({ selectedSlotsIds, setSelectedSlotsIds, course }) {
 	return (
 		<>
 			<Card>
-				<Title level={2}>Name of Course</Title>
+				<Title level={2}>{course.name}</Title>
 
 				<Collapse style={{ marginTop: 12 }} defaultActiveKey={["0"]}>
 					<Collapse.Panel
@@ -16,7 +16,7 @@ export function StepSelect({ selectedSlots, onChange, slots }) {
 						key="0"
 					>
 						<Text>
-                            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                            {course.description}
                         </Text>
 					</Collapse.Panel>
 				</Collapse>
@@ -24,9 +24,9 @@ export function StepSelect({ selectedSlots, onChange, slots }) {
 
 			<Card style={{ marginTop: 16 }}>
 				<ResponsiveCourseCalendar
-					selectedSlots={selectedSlots}
-					onSelect={onChange}
-					slots={slots}
+					selectedSlotsIds={selectedSlotsIds}
+					setSelectedSlotsIds={setSelectedSlotsIds}
+					course={course}
 				/>
 			</Card>
 		</>

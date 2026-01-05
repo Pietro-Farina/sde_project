@@ -1,12 +1,28 @@
 const express = require("express");
 const cors = require("cors");
-const bookingRoutes = require("./routes/bookingRoutes");
+const routes = require('./routes'); // Import the combined router from routes/index.js
+const allowedOrigins = require('./config/allowedOrigin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+const corsOptions = {
+	origin: function (origin, callback) {
+		// Allow requests with no origin (like mobile apps or Postman)
+		if (!origin) return callback(null, true);
+		
+		if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+			callback(null, true);
+		} else {
+			callback(new Error('Not allowed by CORS'));
+		}
+	},
+	credentials: true,
+	optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Health check
@@ -30,7 +46,7 @@ app.get("/api", (req, res) => {
 });
 
 // Routes
-app.use("/api", bookingRoutes);
+app.use("/api", routes);
 
 app.listen(PORT, () => {
 	console.log(`Process Service running on port ${PORT}`);

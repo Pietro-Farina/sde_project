@@ -70,15 +70,15 @@ function getVisibleDays(days, { isMobile, isTablet, isDesktop }) {
 	return days;
 }
 
-const SlotItem = ({ slot, selectedSlots, toggleSlot }) => {
-	const isSelected = selectedSlots.includes(slot.id);
+const SlotItem = ({ slot, selectedSlotsIds, toggleSlot }) => {
+	const isSelected = selectedSlotsIds.includes(slot._id);
 
 	return (
 		<Card
 			hoverable
 			className="slot-item"
 			bodyStyle={{ paddingLeft: "12px", paddingRight: "12px" }}
-            onClick={() => toggleSlot(slot.id)}
+            onClick={() => toggleSlot(slot._id)}
             style={{
                 borderColor: isSelected ? "#1890ff" : undefined,
                 borderWidth: isSelected ? "2px" : undefined,
@@ -102,7 +102,7 @@ const SlotItem = ({ slot, selectedSlots, toggleSlot }) => {
 	);
 };
 
-const DaySection = ({ day, slotsPerDay, selectedSlots, toggleSlot }) => {
+const DaySection = ({ day, slotsPerDay, selectedSlotsIds, toggleSlot }) => {
 	return (
 		<div className="day-section">
 			<Title level={4} style={{ marginBottom: 12 }}>
@@ -112,9 +112,9 @@ const DaySection = ({ day, slotsPerDay, selectedSlots, toggleSlot }) => {
 			<Space direction="vertical" size="small" style={{ width: "100%" }}>
 				{slotsPerDay.map((slot) => (
 					<SlotItem
-						key={slot.id}
+						key={slot._id}
 						slot={slot}
-						selectedSlots={selectedSlots}
+						selectedSlotsIds={selectedSlotsIds}
                         toggleSlot={toggleSlot}
 					/>
 				))}
@@ -123,7 +123,7 @@ const DaySection = ({ day, slotsPerDay, selectedSlots, toggleSlot }) => {
 	);
 };
 
-const DayColumn = ({ day, slotsPerDay, selectedSlots, toggleSlot }) => {
+const DayColumn = ({ day, slotsPerDay, selectedSlotsIds, toggleSlot }) => {
 	return (
 		<div className="day-column">
 			<Title level={5} style={{ marginBottom: 12 }} className="day-title">
@@ -134,9 +134,9 @@ const DayColumn = ({ day, slotsPerDay, selectedSlots, toggleSlot }) => {
 			<div className="slots">
 				{slotsPerDay.map((slot) => (
 					<SlotItem
-						key={slot.id}
+						key={slot._id}
 						slot={slot}
-						selectedSlots={selectedSlots}
+						selectedSlotsIds={selectedSlotsIds}
                         toggleSlot={toggleSlot}
 					/>
 				))}
@@ -145,11 +145,12 @@ const DayColumn = ({ day, slotsPerDay, selectedSlots, toggleSlot }) => {
 	);
 };
 
-const ResponsiveCourseCalendar = ({ selectedSlots, onSelect, slots }) => {
+const ResponsiveCourseCalendar = ({ selectedSlotsIds, setSelectedSlotsIds, course }) => {
 	const { isMobile, isTablet, isDesktop } = useAppResponsive();
+    const { slots } = course;
 
 	function toggleSlot(slotId) {
-		onSelect((prev) =>
+		setSelectedSlotsIds((prev) =>
 			prev.includes(slotId)
 				? prev.filter((id) => id !== slotId)
 				: [...prev, slotId]
@@ -175,7 +176,7 @@ const ResponsiveCourseCalendar = ({ selectedSlots, onSelect, slots }) => {
 							key={day.key}
 							day={day}
 							slotsPerDay={day.slots}
-							selectedSlots={selectedSlots}
+							selectedSlotsIds={selectedSlotsIds}
                             toggleSlot={toggleSlot}
 							style={{ width: "100%" }}
 						/>
@@ -195,7 +196,7 @@ const ResponsiveCourseCalendar = ({ selectedSlots, onSelect, slots }) => {
 							key={day.key}
 							day={day}
 							slotsPerDay={day.slots}
-							selectedSlots={selectedSlots}
+							selectedSlotsIds={selectedSlotsIds}
 							toggleSlot={toggleSlot}
 						/>
 					))}

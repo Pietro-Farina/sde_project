@@ -21,11 +21,11 @@ const courseSchema = new mongoose.Schema(
 					required: true,
 				},
 				capacity: {
-					type: Int32,
+					type: Number,
 					required: true,
 				},
 				available: {
-					type: Int32,
+					type: Number,
 					required: true,
 				},
 			},
@@ -37,7 +37,7 @@ const courseSchema = new mongoose.Schema(
 		priceOptions: [
 			{
 				numberSlots: {
-					type: Int32,
+					type: Number,
 					required: true,
 				},
 				price: {
