@@ -7,6 +7,7 @@ import { StepPayment } from "./StepPayment";
 import { useSlots } from "../../hooks/useSlots";
 import { useParams } from "react-router";
 import { useGetCourseByIdQuery } from "../courses/coursesApiSlice";
+import { useStartBookingProcessMutation } from "./bookingApiSlice";
 
 const steps = [{ title: "Select" }, { title: "Review" }, { title: "Payment" }];
 
@@ -25,6 +26,17 @@ export default function CourseBookingPage() {
         error,
     } = useGetCourseByIdQuery(id, { skip: !id });
 
+	const [
+		startBookingProcess,
+		{
+			data: reservationData,
+			isLoading: isReservationLoading,
+			isSuccess: isReservationSuccess,
+			isError: isReservationError,
+			error: reservationError,
+		}
+	] = useStartBookingProcessMutation();
+
 	const canContinue = useMemo(() => {
 		if (current === 0) return selectedSlotsIds.length > 0;
 		return true;
@@ -40,6 +52,20 @@ export default function CourseBookingPage() {
     }
 
     const userId = "648a1f4e2f8fb814c8d6f9b1"; // TODO: get from auth
+
+	const handleStartBooking = async () => {
+		try {
+			const bookingData = {
+				userId,
+				courseId: course.id,
+				slotIds: selectedSlotsIds,
+			};
+			const result = await startBookingProcess(bookingData);
+			console.log("Booking started: ", result);
+		} catch (err) {
+			console.error("Failed to start booking process: ", err);
+		}
+	};
 
 	return (
 		<>
@@ -69,6 +95,7 @@ export default function CourseBookingPage() {
 				selectedSlots={selectedSlots}
                 canContinue={canContinue}
                 setSelectedSlotsIds={setSelectedSlotsIds}
+				onStartBooking={handleStartBooking}
 				onNext={() => setCurrent((s) => s + 1)}
 				onBack={() => setCurrent((s) => s - 1)}
 			/>

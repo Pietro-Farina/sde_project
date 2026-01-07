@@ -8,6 +8,10 @@ const bookingController = require('../controllers/bookingController');
 // router.put('/bookings/:id', bookingController.update);
 // router.delete('/bookings/:id', bookingController.delete);
 
-router.get('/test', bookingController.test);
+router.post('/reservations', bookingController.createReservation);
+router.get('/reservations/active', bookingController.getActiveCourseReservationForUser);
+router.post('/reservations/cancel', bookingController.cancelReservation);
+
+
 
 module.exports = router;

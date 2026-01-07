@@ -15,6 +15,7 @@ export function SelectionGuide({
 	onNext,
 	onBack,
 	setSelectedSlotsIds,
+	onStartBooking,
 }) {
 	const removeSlot = (slotId) => {
 		// `selectedSlots` is an array of IDs, not slot objects.
@@ -78,7 +79,7 @@ export function SelectionGuide({
 					</Button>
 				</div>
 
-				<Button type="primary" disabled={!canContinue} onClick={onNext}>
+				<Button type="primary" disabled={!canContinue} onClick={step === 2 ? onStartBooking : onNext}>
 					{step === 2 ? "Pay" : "Continue"}
 				</Button>
 			</div>
