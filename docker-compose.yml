@@ -71,3 +71,13 @@ services:
     depends_on:
       booking-orchestrator:
         condition: service_started
+
+  # Booking Cleanup Cron Job
+  booking-cleanup-cron:
+    build: ./backend/booking-cleanup-cron
+    environment:
+      - CLEANUP_API_URL=http://data-service:3002/api/data/reservations/cleanup-expired
+      - CLEANUP_API_KEY=your-internal-api-key # Optional, if you secure the endpoint
+    depends_on:
+      - data-service
+    restart: unless-stopped

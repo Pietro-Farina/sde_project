@@ -2,6 +2,7 @@ const asyncHandler = require("express-async-handler");
 const Course = require("../models/Course");
 const Reservation = require("../models/Reservation");
 const mongoose = require("mongoose");
+const cleanupSettings = require("../config/cleanupSettings");
 
 const createReservationWithTransaction = asyncHandler(async (req, res) => {
     const { courseId, slotIds, userId, expiresInMinutes } = req.body;
@@ -129,7 +130,7 @@ const updateReservationStatus = asyncHandler(async (req, res) => {
 /**
  * TODO: define when the course slots' availability should be restored
  */
-const deleteReservationWithTransactionById = asyncHandler(async (req, res) => {
+const cancelReservationWithTransactionById = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     if (!id) {
@@ -174,18 +175,24 @@ const deleteReservationWithTransactionById = asyncHandler(async (req, res) => {
             );
         }
 
-        // Delete reservation
-        const result = await Reservation.deleteOne({ _id: id }).session(session);
+        // Cancel reservation
+        const result = await Reservation.updateOne(
+            { _id: id },
+            { $set: { status: "cancelled" } },
+            { session }
+        );
 
-        if (!result || result.deletedCount === 0) {
+        if (!result || result.modifiedCount === 0) {
             await session.abortTransaction();
-            return res.status(500).json({ error: "Failed to delete reservation" });
+            return res.status(500).json({ error: "Failed to cancel reservation" });
         }
 
         // Commit transaction
         await session.commitTransaction();
 
-        res.status(204).send();
+        res.status(200).json({
+            message: "Reservation cancelled successfully"
+        });
     } catch (error) {
         await session.abortTransaction();
         throw error;
@@ -196,7 +203,7 @@ const deleteReservationWithTransactionById = asyncHandler(async (req, res) => {
 
 const deleteReservationById = asyncHandler(async (req, res) => {
     const { id } = req.body;
-    
+
     if (!id) {
         return res.status(400).json({ error: "Reservation ID is required" });
     }
@@ -212,12 +219,60 @@ const deleteReservationById = asyncHandler(async (req, res) => {
     return res.status(204).send();
 });
 
+const cleanupExpiredReservations = asyncHandler(async (req, res) => {
+    const now = new Date();
+    // Find expired 'held' reservations
+    const expiredReservations = await Reservation.find({
+        status: 'held',
+        expiration: { $lt: now }
+    }).limit(cleanupSettings.batchSize);
+
+    for (const reservation of expiredReservations) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+            // Restore slot availability
+            const course = await Course.findById(reservation.course).session(session);
+            if (!course) throw new Error('Course not found for reservation ' + reservation._id);
+
+            // Validate all slots exist
+            const slotsToRestore = course.slots.filter(slot => reservation.slots.includes(slot._id.toString()));
+            if (slotsToRestore.length !== reservation.slots.length) throw new Error('Slot mismatch for reservation ' + reservation._id);
+
+            for (const slotId of reservation.slots) {
+                await Course.updateOne(
+                    { _id: reservation.course, 'slots._id': slotId },
+                    { $inc: { 'slots.$.available': 1 } },
+                    { session }
+                );
+            }
+            // Cancel reservation
+            const result = await Reservation.updateOne(
+                { _id: reservation._id },
+                { $set: { status: "cancelled" } },
+                { session }
+            );
+
+            if (!result || result.modifiedCount === 0) {
+                throw new Error("Failed to cancel reservation " + reservation._id);
+            }
+
+            await session.commitTransaction();
+        } catch (error) {
+            await session.abortTransaction();
+            console.error("Error cleaning up reservation " + reservation._id + ": " + error.message);
+        } finally {
+            session.endSession();
+        }
+    }
+});
+
 module.exports = {
     createReservationWithTransaction,
     getReservationById,
     getAllReservations,
-    deleteReservationWithTransactionById,
-    deleteReservationById,
+    cancelReservationWithTransactionById,
+    cleanupExpiredReservations,
     // updateReservationStatus,
     // deleteReservationById,
 };

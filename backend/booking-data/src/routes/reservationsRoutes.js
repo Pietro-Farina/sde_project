@@ -7,6 +7,10 @@ router
     .post("/", reservationsController.createReservationWithTransaction);
 
 router
-    .get("/:id", reservationsController.getReservationById);
+    .post("/cleanup-expired", reservationsController.cleanupExpiredReservations);
+
+router
+    .get("/:id", reservationsController.getReservationById)
+    .patch("/:id/cancel", reservationsController.cancelReservationWithTransactionById);
 
 module.exports = router;
