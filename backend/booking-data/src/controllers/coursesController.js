@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const Course = require("../models/Course");
-var mongoose = require("mongoose");
+const mongoose = require("mongoose");
 
 const course1 = {
 	name: "Introduction to Web Development",
@@ -103,8 +103,7 @@ const getAllCourses = asyncHandler(async (req, res) => {
 	const courses = await Course.find().lean();
 
 	return res.status(200).json({
-		status: "OK",
-		data: courses,
+		data: courses
 	});
 });
 
@@ -112,21 +111,20 @@ const getCourseById = asyncHandler(async (req, res) => {
 	const { id } = req.params;
 
 	if (!id) {
-		return res.status(400).json({ message: "Course ID is required" });
+		return res.status(400).json({ error: "Course ID is required" });
 	}
 	if (!mongoose.Types.ObjectId.isValid(id)) {
-		return res.status(400).json({ message: "Invalid Course ID" });
+		return res.status(400).json({ error: "Invalid Course ID" });
 	}
 
 	const course = await Course.findById(id).lean();
 
 	if (!course) {
-		return res.status(404).json({ message: "Course not found" });
+		return res.status(404).json({ error: "Course not found" });
 	}
 
 	return res.status(200).json({
-		status: "OK",
-		data: course,
+		data: course
 	});
 });
 

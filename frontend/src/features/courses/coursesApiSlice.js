@@ -19,8 +19,8 @@ export const coursesApiSlice = apiSlice.injectEndpoints({
                 },
             }),
             transformResponse: (responseData) => {
-                console.log(responseData.data.data)
-                const loadedCourses = responseData.data.data.map((course) => {
+                console.log(responseData)
+                const loadedCourses = responseData.data.map((course) => {
                     course.id = course._id;
                     return course;
                 });
@@ -46,7 +46,7 @@ export const coursesApiSlice = apiSlice.injectEndpoints({
             // keepUnusedDataFor: 5,
             transformResponse: responseData => {
                 console.log(responseData)
-                const loadedcourse = { ...responseData.data.data, id: responseData.data.data._id };
+                const loadedcourse = { ...responseData.data, id: responseData.data._id };
 				delete loadedcourse._id;
                 return loadedcourse;
             },
