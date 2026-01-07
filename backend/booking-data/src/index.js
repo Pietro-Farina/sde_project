@@ -33,6 +33,15 @@ app.all('*', (req, res) => {
     }
 })
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+	const dateTime = new Date().toISOString();
+	const logItem = `${dateTime}\t${req.method}\t${req.url}\t${req.headers.origin}\n`
+	console.log(logItem);
+	console.error(err.stack);
+
+	res.status(500).json({ message: "Internal Server Error" });
+});
 connectDB();
 
 mongoose.connection.once('open', () => {
