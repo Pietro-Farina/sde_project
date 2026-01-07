@@ -53,23 +53,34 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
             }
         }),
         getActiveReservation: builder.query({
-            query: (id) => ({
-                url: `/reservations/${id}`,
-                method: 'GET',
+            query: (reservationData) => ({
+                url: `/bookings/reservations/pending`,
+                method: 'POST',
+                body: reservationData,
                 validateStatus: (response, result) => {
-                    return response.status === 200 && !result.isError
+                    return (response.status === 200 && !result.isError) || response.status === 404;
                 },
             }),
             // keepUnusedDataFor: 5,
             transformResponse: responseData => {
                 console.log(responseData)
-                const loadedcourse = { ...responseData.data.data, id: responseData.data.data._id };
-                delete loadedcourse._id;
-                return loadedcourse;
+                const activeReservation = { ...responseData.data, id: responseData.data._id };
+                delete activeReservation._id;
+                return activeReservation;
             },
             providesTags: (result, error, arg) => {
-                return [{ type: 'Course', id: result?.id }]
+                return [{ type: 'Reservation', id: result?.id }]
             }
+        }),
+        cancelActiveReservation: builder.mutation({
+            query: (id) => ({
+                url: `/bookings/reservations/${id}/cancel`,
+                method: 'PATCH',
+                validateStatus: (response, result) => {
+                    return response.status === 200 && !result.isError
+                },
+            }),
+            invalidatesTags: [{ type: 'Reservation', id: 'LIST' }],
         }),
     }),
 });
@@ -78,4 +89,5 @@ export const {
     useGetBookingsQuery,
     useStartBookingProcessMutation,
     useGetActiveReservationQuery,
+    useCancelActiveReservationMutation,
 } = bookingsApiSlice;

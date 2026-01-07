@@ -1,5 +1,6 @@
 const businessServiceClient = require("../clients/businessServiceClient");
-const asyncHandler = require('express-async-handler')
+const asyncHandler = require('express-async-handler');
+const dataServiceClient = require("../clients/dataServiceClient");
 
 
 const test = asyncHandler(async (req, res) => {
@@ -30,7 +31,7 @@ const startBookingProcess = asyncHandler(async (req, res) => {
 });
 
 const getPendingReservation = asyncHandler(async (req, res) => {
-    const { userId, courseId } = req.query;
+    const { userId, courseId } = req.body;
 
     const result = await businessServiceClient.getPendingReservation({
         userId,
@@ -43,12 +44,10 @@ const getPendingReservation = asyncHandler(async (req, res) => {
 });
 
 const cancelReservation = asyncHandler(async (req, res) => {
-    const { userId, reservationId } = req.body;
+    const { reservationId } = req.params;
 
-    const result = await businessServiceClient.cancelPendingReservation({
-        reservationId,
-        userId,
-    });
+    const result = await dataServiceClient.cancelReservationById(reservationId);
+
     res.status(200).json({
         data: result
     });

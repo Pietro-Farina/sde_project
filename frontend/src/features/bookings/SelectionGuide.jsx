@@ -12,6 +12,7 @@ export function SelectionGuide({
 	step,
 	selectedSlots,
 	canContinue,
+	canGoBack,
 	onNext,
 	onBack,
 	setSelectedSlotsIds,
@@ -74,7 +75,7 @@ export function SelectionGuide({
 				}}
 			>
 				<div>
-					<Button onClick={onBack} hidden={step === 0}>
+					<Button onClick={onBack} disabled={!canGoBack} hidden={step === 0}>
 						Back
 					</Button>
 				</div>

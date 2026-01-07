@@ -9,7 +9,7 @@ const bookingController = require('../controllers/bookingController');
 // router.delete('/bookings/:id', bookingController.delete);
 
 router.post('/reservations', bookingController.createReservation);
-router.get('/reservations/active', bookingController.getActiveCourseReservationForUser);
+router.post('/reservations/active', bookingController.getActiveCourseReservationForUser);
 router.post('/reservations/cancel', bookingController.cancelReservation);
 
 

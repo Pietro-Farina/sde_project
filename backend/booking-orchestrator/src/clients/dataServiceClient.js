@@ -25,6 +25,17 @@ class DataServiceClient {
 			throw new Error(`Data service error: ${error.message}`);
 		}
 	}
+
+	async cancelReservationById(reservationId) {
+		try {
+			const response = await axios.patch(
+				`${DATA_SERVICE_URL}/api/data/reservations/${reservationId}/cancel`
+			);
+			return response.data.data;
+		} catch (error) {
+			throw new Error(`Data service error: ${error.message}`);
+		}
+	}
 }
 
 module.exports = new DataServiceClient();

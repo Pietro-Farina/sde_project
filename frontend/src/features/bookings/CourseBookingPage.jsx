@@ -1,5 +1,5 @@
-import { Steps, Card } from "antd";
-import { useState, useMemo } from "react";
+import { Steps, Card, Modal, Button } from "antd";
+import { useState, useMemo, useEffect } from "react";
 import { SelectionGuide } from "./SelectionGuide";
 import { StepSelect } from "./StepSelect";
 import { StepReview } from "./StepReview";
@@ -7,17 +7,24 @@ import { StepPayment } from "./StepPayment";
 import { useSlots } from "../../hooks/useSlots";
 import { useParams } from "react-router";
 import { useGetCourseByIdQuery } from "../courses/coursesApiSlice";
-import { useStartBookingProcessMutation } from "./bookingApiSlice";
+import { useStartBookingProcessMutation, useGetActiveReservationQuery, useCancelActiveReservationMutation } from "./bookingApiSlice";
 
 const steps = [{ title: "Select" }, { title: "Review" }, { title: "Payment" }];
 
 export default function CourseBookingPage() {
 	const [current, setCurrent] = useState(0);
 	const [selectedSlotsIds, setSelectedSlotsIds] = useState([]);
+	const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
+	const [isReservationActive, setIsReservationActive] = useState(false);
     const { slots } = useSlots()
 
     // id corso
 	const { id } = useParams();
+	const userId = "648a1f4e2f8fb814c8d6f9b1"; // TODO: get from auth
+
+    console.log('User ID:', userId);
+    console.log('Course ID:', id);
+
     const {
         data: course,
         isLoading,
@@ -25,6 +32,38 @@ export default function CourseBookingPage() {
         isError,
         error,
     } = useGetCourseByIdQuery(id, { skip: !id });
+
+	// Check for active reservation on page load
+	const {
+		data: activeReservation,
+		isLoading: activeReservationIsLoading,
+		isSuccess: activeReservationIsSuccess,
+		isError: activeReservationIsError,
+		error: activeReservationError,
+	} = useGetActiveReservationQuery({ userId, courseId: id }, { skip: !userId || !id });
+
+	const [
+		cancelActiveReservation,
+		{
+			data: cancelReservationData,
+			isLoading: isCancelReservationLoading,
+			isSuccess: isCancelReservationSuccess,
+			isError: isCancelReservationError,
+			error: cancelReservationError,
+		}
+	] = useCancelActiveReservationMutation();
+
+	// Handle the reservation result one time
+	useEffect(() => {
+		if (activeReservationIsSuccess && activeReservation) {
+			console.log("Active reservation found:", activeReservation);
+			setIsReservationModalOpen(true);
+		}
+		if (activeReservationIsError) {
+			console.error("Error checking reservation:", activeReservationError);
+			// Handle error (e.g., user has no active reservation)
+		}
+	}, [activeReservationIsSuccess, activeReservationIsError]);
 
 	const [
 		startBookingProcess,
@@ -51,8 +90,6 @@ export default function CourseBookingPage() {
         return <Card>Loading...</Card>
     }
 
-    const userId = "648a1f4e2f8fb814c8d6f9b1"; // TODO: get from auth
-
 	const handleStartBooking = async () => {
 		try {
 			const bookingData = {
@@ -67,6 +104,22 @@ export default function CourseBookingPage() {
 		}
 	};
 
+	const handleRestoreReservation = () => {
+		// TODO: Implement restore reservation logic
+		console.log("Restoring reservation:", activeReservation);
+		setSelectedSlotsIds(activeReservation.slots);
+		setCurrent(1); // Go to payment step
+		setIsReservationActive(true);
+		setIsReservationModalOpen(false);
+	};
+
+	const handleCancelReservation = () => {
+		// TODO: Implement cancel reservation logic
+		console.log("Cancelling reservation:", activeReservation);
+		cancelActiveReservation(activeReservation.id);
+		setIsReservationModalOpen(false);
+	};
+
 	return (
 		<>
 			{/* Step indicator */}
@@ -75,6 +128,31 @@ export default function CourseBookingPage() {
 				items={steps}
 				style={{ marginBottom: 24 }}
 			/>
+
+			{/* Active Reservation Modal */}
+			<Modal
+				title="Active Reservation Found"
+				open={isReservationModalOpen}
+				onCancel={() => setIsReservationModalOpen(false)}
+				footer={[
+					<Button
+						key="cancel"
+						onClick={handleCancelReservation}
+					>
+						Cancel Reservation
+					</Button>,
+					<Button
+						type="primary"
+						key="restore"
+						onClick={handleRestoreReservation}
+					>
+						Restore Reservation
+					</Button>,
+				]}
+			>
+				<p>You have an active reservation for this course.</p>
+				<p>Would you like to restore it or start a new booking?</p>
+			</Modal>
 
 			{/* Step content */}
 			{current === 0 && (
@@ -94,6 +172,7 @@ export default function CourseBookingPage() {
 				step={current}
 				selectedSlots={selectedSlots}
                 canContinue={canContinue}
+				canGoBack={current > 0 && !(isReservationActive && current === 1)}
                 setSelectedSlotsIds={setSelectedSlotsIds}
 				onStartBooking={handleStartBooking}
 				onNext={() => setCurrent((s) => s + 1)}

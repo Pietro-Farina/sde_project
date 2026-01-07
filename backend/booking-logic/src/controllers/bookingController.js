@@ -51,47 +51,12 @@ const createReservation = asyncHandler(async (req, res) => {
     });
 });
 
-const getUserReservationById = asyncHandler(async (req, res) => {
-    const { id, userId } = req.body;
-
-    if (!id || !userId) {
-        return res.status(400).json({ error: "Missing reservation ID or user ID" });
-    }
-
-    // Fetch reservation details from booking-data service
-    const reservation = await dataServiceClient.getReservationById(id);
-
-    if (!reservation) {
-        return res.status(404).json({ error: "Reservation not found" });
-    }
-
-    // Can the user access this reservation?
-    if (reservation.user.toString() !== userId) {
-        return res.status(403).json({ error: "Access denied to this reservation" });
-    }
-
-    // is the reservation still valid?
-    const now = new Date();
-    if (reservation.status !== "held") {
-        return res.status(409).json({ error: `Reservation is already ${reservation.status}` });
-    }
-    // if expired but still 'held' then safely expire it and free up slots in the course
-    if (new Date(reservation.expiration) < now) {
-        void dataServiceClient.safeCancelReservationById(id); // safely expire it
-
-        return res.status(410).json({ error: "Reservation has expired" });
-    }
-
-    // return reservation details if all checks pass
-    res.status(200).json({
-        data: reservation
-    });
-});
-
 const getActiveCourseReservationForUser = asyncHandler(async (req, res) => {
     const { courseId, userId } = req.body;
+    console.log(req.body);
 
     if (!userId || !courseId) {
+        console.log("Missing userId or courseId", userId, courseId);
         return res.status(400).json({ error: "Missing user ID or course ID" });
     }
 
@@ -105,8 +70,6 @@ const getActiveCourseReservationForUser = asyncHandler(async (req, res) => {
             return false;
         }
         if (new Date(reservation.expiration) < now) {
-            // safely expire it
-            void dataServiceClient.safeCancelReservationById(reservation._id);
             return false;
         }
         return true;
@@ -156,12 +119,6 @@ const cancelReservation = asyncHandler(async (req, res) => {
 
     return res.status(409).json({ error: "Reservation not active" });
 })
-
-const cancelExpiredReservations = asyncHandler(async (req, res) => {
-    // Logic to find and cancel all expired reservations
-
-    // Fetch all reservations from booking-data service
-});
 
 module.exports = {
     createReservation,

@@ -38,10 +38,12 @@ class BusinessServiceClient {
 		}
 	}
 
-	async getPendingReservation(reservationId) {
+	async getPendingReservation(reservationData) {
 		try {
-			const response = await axios.get(
-				`${BUSINESS_SERVICE_URL}/api/business/reservations/${reservationId}`
+			console.log("Fetching pending reservation with data:", reservationData);
+			const response = await axios.post(
+				`${BUSINESS_SERVICE_URL}/api/business/reservations/active`,
+				reservationData
 			);
 			return response.data.data;
 		} catch (error) {
