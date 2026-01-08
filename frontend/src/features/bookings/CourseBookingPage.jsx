@@ -1,5 +1,5 @@
 import { Steps, Card, Modal, Button, message } from "antd";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, use } from "react";
 import { SelectionGuide } from "./SelectionGuide";
 import { StepSelect } from "./StepSelect";
 import { StepReview } from "./StepReview";
@@ -9,6 +9,7 @@ import { useParams } from "react-router";
 import { useGetCourseByIdQuery } from "../courses/coursesApiSlice";
 import { useStartBookingProcessMutation, useGetActiveReservationQuery, useCancelActiveReservationMutation } from "./bookingApiSlice";
 import { usePayPalScriptReducer } from "@paypal/react-paypal-js";
+import { useGlobalSpinner } from "../../app/providers/GlobalSpinnerProvider";
 
 const steps = [{ title: "Select" }, { title: "Review" }, { title: "Payment" }];
 
@@ -34,6 +35,8 @@ export default function CourseBookingPage() {
 		isError,
 		error,
 	} = useGetCourseByIdQuery(id, { skip: !id });
+
+    const { show, hide } = useGlobalSpinner();
 
 	// Check for active reservation on page load
 	const {
@@ -77,6 +80,14 @@ export default function CourseBookingPage() {
 			error: reservationError,
 		}
 	] = useStartBookingProcessMutation();
+
+    useEffect(() => {
+        if (isLoading) {
+            show();
+        } else {
+            hide();
+        }
+    }, [isLoading]);
 
 	const optionSelected = useMemo(() => {
 		if (!course) return null;

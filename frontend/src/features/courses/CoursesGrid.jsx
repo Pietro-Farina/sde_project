@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
 	Typography,
 	Row,
@@ -12,6 +12,7 @@ import {
 } from "antd";
 import { useGetCoursesQuery } from "./coursesApiSlice";
 import { useNavigate } from "react-router";
+import { useGlobalSpinner } from "../../app/providers/GlobalSpinnerProvider";
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -24,6 +25,16 @@ const CoursesGrid = () => {
 		isError,
 		error,
 	} = useGetCoursesQuery("coursesList");
+
+    const { show, hide } = useGlobalSpinner();
+
+    useEffect(() => {
+        if (isLoading) {
+            show();
+        } else {
+            hide();
+        }
+    }, [isLoading]);
 
     const navigate = useNavigate();
 

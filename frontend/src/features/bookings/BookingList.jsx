@@ -4,11 +4,14 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useAppResponsive } from "../../app/providers/ResponsiveProvider";
 import { useBookings } from "../../hooks/useSlots";
 import "./BookingList.css";
+import { useGlobalSpinner } from "../../app/providers/GlobalSpinnerProvider";
 
 const { Text } = Typography;
 const BookingList = () => {
 	const { isMobile } = useAppResponsive();
 	const bookings = useBookings();
+
+    const { show, hide } = useGlobalSpinner();
 
 	const columns = [
 		{

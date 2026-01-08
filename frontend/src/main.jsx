@@ -26,6 +26,7 @@ import { store } from "./app/store";
 import { App as AppProvider } from "antd";
 import AppLayout from "./components/AppLayout.jsx";
 import { PayPalProvider } from "./app/providers/PayPalProvider.jsx";
+import { GlobalSpinnerProvider } from "./app/providers/GlobalSpinnerProvider.jsx";
 
 const root = document.getElementById("root");
 
@@ -37,11 +38,13 @@ ReactDOM.createRoot(root).render(
 					<ThemeProvider>
 						<ResponsiveProvider>
 							<AppProvider>
-								<AppLayout>
-									<Routes>
-										<Route path="*" element={<App />} />
-									</Routes>
-								</AppLayout>
+								<GlobalSpinnerProvider>
+									<AppLayout>
+										<Routes>
+											<Route path="*" element={<App />} />
+										</Routes>
+									</AppLayout>
+								</GlobalSpinnerProvider>
 							</AppProvider>
 						</ResponsiveProvider>
 					</ThemeProvider>
