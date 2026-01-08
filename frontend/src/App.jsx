@@ -13,6 +13,7 @@ function App() {
 			<Route path="/">
 				{/* Public routes */}
 				<Route index element={<CoursesGrid />} />
+                <Route path="courses" element={<CoursesGrid />} />
 				<Route path="login" element={<LoginPage />} />
 				<Route path="logout" element={<LoginPage />} />
 

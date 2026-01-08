@@ -25,7 +25,6 @@ import { Provider } from "react-redux";
 import { store } from "./app/store";
 import { App as AppProvider } from "antd";
 import AppLayout from "./components/AppLayout.jsx";
-import { SidebarMenu } from "./components/SidebarMenu.jsx";
 import { PayPalProvider } from "./app/providers/PayPalProvider.jsx";
 
 const root = document.getElementById("root");
@@ -38,7 +37,7 @@ ReactDOM.createRoot(root).render(
 					<ThemeProvider>
 						<ResponsiveProvider>
 							<AppProvider>
-								<AppLayout sidebarContent={SidebarMenu}>
+								<AppLayout>
 									<Routes>
 										<Route path="*" element={<App />} />
 									</Routes>

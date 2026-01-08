@@ -1,23 +1,29 @@
-import { Layout, Button, Grid, theme } from "antd";
+import { Layout, Button, Grid, theme, Typography, Divider } from "antd";
 import { MenuOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ResponsiveSidebar from "./ResponsiveSidebar";
 import { useAppResponsive } from "../app/providers/ResponsiveProvider";
+import { SidebarMenu } from "./SidebarMenu.jsx";
+import { useNavigate } from "react-router";
 
 const { Header, Content } = Layout;
 const { useBreakpoint } = Grid;
 
-export default function AppLayout({ sidebarContent, children }) {
+const { Title } = Typography;
+
+export default function AppLayout({ children }) {
 	const screens = useBreakpoint();
 	console.log(screens);
-    const { isMobile, isTablet } = useAppResponsive();
+	const { isMobile, isTablet } = useAppResponsive();
 
 	const [collapsed, setCollapsed] = useState(false);
 	const [drawerOpen, setDrawerOpen] = useState(false);
-    const { token } = theme.useToken();
-
+	const { token } = theme.useToken();
+    const navigate = useNavigate();
 
 	const layoutModeRef = useRef(null); // "mobile" | "tablet" | "desktop"
+
+    const isLogged = true; // TODO: get from auth state
 
 	useEffect(() => {
 		let newMode;
@@ -47,7 +53,7 @@ export default function AppLayout({ sidebarContent, children }) {
 			setCollapsed(!collapsed);
 		}
 	};
-    console.log( token )
+	console.log(token);
 
 	return (
 		<Layout className="app-shell">
@@ -57,21 +63,54 @@ export default function AppLayout({ sidebarContent, children }) {
 				drawerOpen={drawerOpen}
 				setDrawerOpen={setDrawerOpen}
 			>
-				{sidebarContent}
+				<SidebarMenu setDrawerOpen={setDrawerOpen} />
 			</ResponsiveSidebar>
 
 			<Layout className="app-main">
-				<Header className="app-header" style={{ background: token.colorBgContainer }}>
-					<Button
-						type="text"
-						icon={<MenuOutlined />}
-						onClick={toggleSidebar}
-					/>
-					<span className="app-title">App shell</span>
+				<Header
+					style={{
+						background: token.colorBgContainer,
+						display: "flex",
+						alignItems: "center",
+						padding: "0 16px",
+					}}
+				>
+					{/* Left */}
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: 12,
+						}}
+					>
+						<Button
+							type="text"
+							size="large"
+							icon={<MenuOutlined />}
+							onClick={toggleSidebar}
+						/>
+						<Divider type="vertical" />
+						<Title level={4} style={{ margin: 0 }} 
+                            >
+							Booking App
+						</Title>
+					</div>
+
+					{/* Right (future-proof) */}
+					<div
+						style={{ marginLeft: "auto", display: "flex", gap: 12 }}
+					>
+						{/* User avatar, notifications, etc. */}
+                        {isLogged ? <Button
+                        onClick={() => navigate("/logout")}
+                        >Logout</Button> : <Button
+                        onClick={() => navigate("/login")}
+                        >Login</Button>}
+					</div>
 				</Header>
 
 				<Content className="app-content">
-                    {children}
+					{children}
 					{/* <div className="app-scroll-area">{children}</div> */}
 				</Content>
 			</Layout>
