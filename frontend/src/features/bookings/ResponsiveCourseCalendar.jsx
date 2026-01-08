@@ -190,6 +190,11 @@ const ResponsiveCourseCalendar = ({ selectedSlotsIds, setSelectedSlotsIds, cours
 							? "calendar-grid-desktop"
 							: "calendar-grid-tablet"
 					}
+					style={isTablet ? {
+						gridTemplateColumns: `repeat(${Math.min(slotsPerDay.length, 4)}, minmax(0, 1fr))`
+					} : {
+						gridTemplateColumns: `repeat(7, minmax(0, 1fr))`
+					}}
 				>
 					{slotsPerDay.map((day) => (
 						<DayColumn
