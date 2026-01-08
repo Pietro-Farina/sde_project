@@ -1,4 +1,4 @@
-import { Steps, Card, Modal, Button } from "antd";
+import { Steps, Card, Modal, Button, message } from "antd";
 import { useState, useMemo, useEffect } from "react";
 import { SelectionGuide } from "./SelectionGuide";
 import { StepSelect } from "./StepSelect";
@@ -8,6 +8,7 @@ import { useSlots } from "../../hooks/useSlots";
 import { useParams } from "react-router";
 import { useGetCourseByIdQuery } from "../courses/coursesApiSlice";
 import { useStartBookingProcessMutation, useGetActiveReservationQuery, useCancelActiveReservationMutation } from "./bookingApiSlice";
+import { usePayPalScriptReducer } from "@paypal/react-paypal-js";
 
 const steps = [{ title: "Select" }, { title: "Review" }, { title: "Payment" }];
 
@@ -16,22 +17,23 @@ export default function CourseBookingPage() {
 	const [selectedSlotsIds, setSelectedSlotsIds] = useState([]);
 	const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
 	const [isReservationActive, setIsReservationActive] = useState(false);
-    const { slots } = useSlots()
+	const [{ isInitial }, dispatch] = usePayPalScriptReducer();
+	const { slots } = useSlots()
 
-    // id corso
+	// id corso
 	const { id } = useParams();
 	const userId = "648a1f4e2f8fb814c8d6f9b1"; // TODO: get from auth
 
-    console.log('User ID:', userId);
-    console.log('Course ID:', id);
+	console.log('User ID:', userId);
+	console.log('Course ID:', id);
 
-    const {
-        data: course,
-        isLoading,
-        isSuccess,
-        isError,
-        error,
-    } = useGetCourseByIdQuery(id, { skip: !id });
+	const {
+		data: course,
+		isLoading,
+		isSuccess,
+		isError,
+		error,
+	} = useGetCourseByIdQuery(id, { skip: !id });
 
 	// Check for active reservation on page load
 	const {
@@ -76,19 +78,25 @@ export default function CourseBookingPage() {
 		}
 	] = useStartBookingProcessMutation();
 
+	const optionSelected = useMemo(() => {
+		if (!course) return null;
+		const option = course.priceOptions.find((opt) => opt.numberSlots === selectedSlotsIds.length);
+		return option ? option : null;
+	}, [selectedSlotsIds, course]);
+
 	const canContinue = useMemo(() => {
-		if (current === 0) return selectedSlotsIds.length > 0;
+		if (current === 0) return course && optionSelected
 		return true;
-	}, [current, selectedSlotsIds]);
+	}, [current, course, optionSelected]);
 
-    console.log(selectedSlotsIds)
-    const selectedSlots = useMemo(() => {
-        return selectedSlotsIds.map(id => course?.slots.find(slot => slot._id === id))
-    }, [selectedSlotsIds, course])
+	console.log(selectedSlotsIds)
+	const selectedSlots = useMemo(() => {
+		return selectedSlotsIds.map(id => course?.slots.find(slot => slot._id === id))
+	}, [selectedSlotsIds, course])
 
-    if (!course) {
-        return <Card>Loading...</Card>
-    }
+	if (!course) {
+		return <Card>Loading...</Card>
+	}
 
 	const handleStartBooking = async () => {
 		try {
@@ -98,9 +106,14 @@ export default function CourseBookingPage() {
 				slotIds: selectedSlotsIds,
 			};
 			const result = await startBookingProcess(bookingData);
+
+			// Handle result (e.g., proceed to payment)
+			// return order ID
 			console.log("Booking started: ", result);
+			return result.orderID;
 		} catch (err) {
 			console.error("Failed to start booking process: ", err);
+			throw new Error(`Failed to start booking process: ${err.message}`);
 		}
 	};
 
@@ -159,23 +172,34 @@ export default function CourseBookingPage() {
 				<StepSelect
 					selectedSlotsIds={selectedSlotsIds}
 					setSelectedSlotsIds={setSelectedSlotsIds}
-                    course={course}
+					course={course}
 				/>
 			)}
 
 			{current === 1 && <StepReview selectedSlots={selectedSlots} course={course} />}
 
-			{current === 2 && <StepPayment selectedSlots={selectedSlots} course={course} />}
+			{current === 2 && <StepPayment
+				selectedSlots={selectedSlots}
+				course={course}
+				optionSelected={optionSelected}
+				onPaymentInitiated={handleStartBooking}
+				/>}
 
 			{/* Sticky / bottom guide */}
 			<SelectionGuide
 				step={current}
 				selectedSlots={selectedSlots}
-                canContinue={canContinue}
+				canContinue={canContinue}
+				optionSelected={optionSelected}
 				canGoBack={current > 0 && !(isReservationActive && current === 1)}
-                setSelectedSlotsIds={setSelectedSlotsIds}
+				setSelectedSlotsIds={setSelectedSlotsIds}
 				onStartBooking={handleStartBooking}
-				onNext={() => setCurrent((s) => s + 1)}
+				onNext={() => {
+					if (current === 1 && isInitial) {
+						dispatch({ type: "setLoadingStatus", value: "pending" })
+					}
+					setCurrent((s) => s + 1)
+				}}
 				onBack={() => setCurrent((s) => s - 1)}
 			/>
 		</>

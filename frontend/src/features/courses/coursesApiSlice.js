@@ -46,7 +46,8 @@ export const coursesApiSlice = apiSlice.injectEndpoints({
             // keepUnusedDataFor: 5,
             transformResponse: responseData => {
                 console.log(responseData)
-                const loadedcourse = { ...responseData.data, id: responseData.data._id };
+                const optionsList = responseData.data.priceOptions.map((option) => option.numberSlots);
+                const loadedcourse = { ...responseData.data, id: responseData.data._id, priceOptionsList: optionsList };
 				delete loadedcourse._id;
                 return loadedcourse;
             },

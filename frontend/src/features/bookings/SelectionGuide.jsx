@@ -1,4 +1,4 @@
-import { Card, Button, Space, Tag, Typography } from "antd";
+import { Card, Button, Space, Tag, Typography, Tooltip, Statistic, Divider, Row, Col } from "antd";
 
 const weekdayMap = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
@@ -15,6 +15,7 @@ export function SelectionGuide({
 	canGoBack,
 	onNext,
 	onBack,
+	optionSelected,
 	setSelectedSlotsIds,
 	onStartBooking,
 }) {
@@ -63,7 +64,36 @@ export function SelectionGuide({
 			)}
 
 			{step === 1 && (
-				<Text>Proceed with payment by clicking continue below.</Text>
+				<div>
+					<Text>Proceed with payment by clicking continue below.</Text>
+					<Divider style={{ margin: "12px 0" }} />
+					<Row gutter={32} justify="center">
+						<Col>
+							<Statistic
+								title="Slots Selected"
+								value={selectedSlots.length}
+								suffix="slots"
+								styles={{ content: { color: "#1890ff", fontWeight: "bold" } }}
+							/>
+						</Col>
+						<Col>
+							{optionSelected !== null ? (
+								<Statistic
+									title="Total Price"
+									value={optionSelected.price}
+									prefix="€"
+									styles={{ content: { color: "#52c41a", fontWeight: "bold", fontSize: "24px" } }}
+								/>
+							) : (
+								<Statistic
+									title="Total Price"
+									value="Unavailable"
+									styles={{ content: { color: "#ff4d4f" } }}
+								/>
+							)}
+						</Col>
+					</Row>
+				</div>
 			)}
 
 			<div
@@ -80,9 +110,11 @@ export function SelectionGuide({
 					</Button>
 				</div>
 
-				<Button type="primary" disabled={!canContinue} onClick={step === 2 ? onStartBooking : onNext}>
-					{step === 2 ? "Pay" : "Continue"}
-				</Button>
+				<Tooltip title={!optionSelected ? "Please select a valid number of slots" : ""} placement="top">
+					<Button type="primary" disabled={!canContinue} onClick={step === 2 ? onStartBooking : onNext}>
+						{step === 2 ? "Pay" : "Continue"}
+					</Button>
+				</Tooltip>
 			</div>
 		</Card>
 	);

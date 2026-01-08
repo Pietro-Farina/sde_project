@@ -68,6 +68,8 @@ services:
       - VITE_HOST=0.0.0.0
       # Points backed API to backend service name (Docker DNS)
       - VITE_API_URL=http://booking-orchestrator:3000
+    env_file:
+      - ./frontend/.env
     depends_on:
       booking-orchestrator:
         condition: service_started

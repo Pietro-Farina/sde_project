@@ -26,6 +26,7 @@ import { store } from "./app/store";
 import { App as AppProvider } from "antd";
 import AppLayout from "./components/AppLayout.jsx";
 import { SidebarMenu } from "./components/SidebarMenu.jsx";
+import { PayPalProvider } from "./app/providers/PayPalProvider.jsx";
 
 const root = document.getElementById("root");
 
@@ -33,17 +34,19 @@ ReactDOM.createRoot(root).render(
 	<StrictMode>
 		<BrowserRouter>
 			<Provider store={store}>
-				<ThemeProvider>
-					<ResponsiveProvider>
-						<AppProvider>
-                            <AppLayout sidebarContent={SidebarMenu}>
-                                <Routes>
-                                    <Route path="*" element={<App />} />
-                                </Routes>
-                            </AppLayout>
-						</AppProvider>
-					</ResponsiveProvider>
-				</ThemeProvider>
+				<PayPalProvider>
+					<ThemeProvider>
+						<ResponsiveProvider>
+							<AppProvider>
+								<AppLayout sidebarContent={SidebarMenu}>
+									<Routes>
+										<Route path="*" element={<App />} />
+									</Routes>
+								</AppLayout>
+							</AppProvider>
+						</ResponsiveProvider>
+					</ThemeProvider>
+				</PayPalProvider>
 			</Provider>
 		</BrowserRouter>
 	</StrictMode>
