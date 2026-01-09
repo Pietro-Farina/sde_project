@@ -35,6 +35,25 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+  
+  # Paypal Adapter Service
+  paypal-adapter:
+    build:
+          context: ./backend/paypal-adapter
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/paypal-adapter/.env
+    ports:
+      - "3003:3003"
+    depends_on:
+      data-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Orchestrator Service
   booking-orchestrator:
