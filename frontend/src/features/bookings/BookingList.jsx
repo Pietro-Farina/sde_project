@@ -5,11 +5,13 @@ import { useAppResponsive } from "../../app/providers/ResponsiveProvider";
 import { useBookings } from "../../hooks/useSlots";
 import "./BookingList.css";
 import { useGlobalSpinner } from "../../app/providers/GlobalSpinnerProvider";
+import { useNavigate } from "react-router";
 
 const { Text } = Typography;
 const BookingList = () => {
 	const { isMobile } = useAppResponsive();
 	const bookings = useBookings();
+    const navigate = useNavigate();
 
     const { show, hide } = useGlobalSpinner();
 
@@ -71,7 +73,7 @@ const BookingList = () => {
 			<Card
 				title="Bookings"
 				extra={
-					<Button type="primary" icon={<PlusOutlined />}>
+					<Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/courses")}>
 						New Booking
 					</Button>
 				}
