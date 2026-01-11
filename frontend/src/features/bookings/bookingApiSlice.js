@@ -19,8 +19,8 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
                 },
             }),
             transformResponse: (responseData) => {
-                console.log(responseData.data.data)
-                const loadedBookings = responseData.data.data.map((booking) => {
+                console.log(responseData.data)
+                const loadedBookings = responseData.data.map((booking) => {
                     booking.id = booking._id;
                     return booking;
                 });

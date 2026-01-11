@@ -120,8 +120,70 @@ const cancelReservation = asyncHandler(async (req, res) => {
     return res.status(409).json({ error: "Reservation not active" });
 })
 
+const createBooking = asyncHandler(async (req, res) => {
+    const { userId, reservationId, transactionId, price } = req.body;
+
+    // I do all the check
+    if (!userId || !reservationId || !transactionId || !price) {
+        return res.status(400).json({ error: "Invalid booking data" });
+    }
+    
+    // I evaluate if the reservations exists, is held, belongs to the user, not expired
+    const reservation = await dataServiceClient.getReservationById(reservationId);
+
+    if (!reservation) {
+        return res.status(404).json({ error: "Reservation not found" });
+    }
+
+    if (reservation.user.toString() !== userId) {
+        return res.status(403).json({ error: "Access denied to this reservation" });
+    }
+
+    if (reservation.status !== "held") {
+        return res.status(409).json({ error: "Reservation is not active" });
+    }
+
+    if (new Date(reservation.expiration) < new Date()) {
+        return res.status(409).json({ error: "Reservation has expired" });
+    }
+
+    // I then issue the creation of the booking and the completion of the reservation in a transaction
+    const newBooking = await dataServiceClient.createBooking({
+        courseId: reservation.course.toString(),
+        userId,
+        reservationId,
+        slots: reservation.slots,
+        transactionId,
+        price
+    });
+
+    if (!newBooking) {
+        return res.status(500).json({ error: "Failed to create booking" });
+    }
+
+    return res.status(201).json({
+        data: newBooking
+    });
+});
+
+const getUserBookings = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+
+    if (!userId) {
+        return res.status(400).json({ error: "Missing user ID" });
+    }
+
+    const bookings = await dataServiceClient.getUserBookings(userId);
+
+    return res.status(200).json({
+        data: bookings
+    });
+});
+
 module.exports = {
     createReservation,
     getActiveCourseReservationForUser,
     cancelReservation,
+    createBooking,
+    getUserBookings
 };

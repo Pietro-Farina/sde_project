@@ -11,6 +11,8 @@ const bookingController = require('../controllers/bookingController');
 // router.post('/bookings/:id/confirm', bookingController.confirm);
 // router.post('/bookings/:id/cancel', bookingController.cancel);
 
+router.get('/', bookingController.getUserBookings);
+
 router.post('/start', bookingController.startBookingProcess);
 router.post('/confirm', bookingController.confirmBooking);
 

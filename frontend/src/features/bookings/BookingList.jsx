@@ -6,14 +6,45 @@ import { useBookings } from "../../hooks/useSlots";
 import "./BookingList.css";
 import { useGlobalSpinner } from "../../app/providers/GlobalSpinnerProvider";
 import { useNavigate } from "react-router";
+import { useGetBookingsQuery } from "./bookingApiSlice";
+import { useEffect } from "react";
 
 const { Text } = Typography;
 const BookingList = () => {
 	const { isMobile } = useAppResponsive();
-	const bookings = useBookings();
-    const navigate = useNavigate();
+	// const bookings = useBookings();
 
-    const { show, hide } = useGlobalSpinner();
+	const {
+		data: normalizedBookings,
+		isLoading,
+		isSuccess,
+		isError,
+		error,
+	} = useGetBookingsQuery();
+
+	const { show, hide } = useGlobalSpinner();
+
+	useEffect(() => {
+		if (isLoading) {
+			show();
+		} else {
+			hide();
+		}
+	}, [isLoading]);
+
+	const navigate = useNavigate();
+
+	let tableSource = null;
+	console.log("IS SUCCESS:", isSuccess);
+	if (isSuccess) {
+		if (normalizedBookings?.ids?.length) {
+			const { entities, ids } = normalizedBookings;
+
+			tableSource = ids.map((id) => entities[id]).filter((entity) => entity !== undefined);
+			console.log("TABLE SOURCE:", tableSource);
+		}
+	}
+	console.log("BOOKINGS:", normalizedBookings);
 
 	const columns = [
 		{
@@ -26,6 +57,8 @@ const BookingList = () => {
 			title: "Course",
 			dataIndex: "course",
 			key: "course",
+			width: 100,
+			ellipsis: true,
 		},
 		{
 			title: "Customer",
@@ -49,6 +82,8 @@ const BookingList = () => {
 			title: "Status",
 			dataIndex: "status",
 			key: "status",
+			width: 100,
+			ellipsis: true,
 		},
 		// {
 		// 	title: "Actions",
@@ -80,12 +115,12 @@ const BookingList = () => {
 			>
 				<Table
 					columns={columns}
-					dataSource={bookings}
+					dataSource={tableSource}
 					expandable={
 						isMobile && {
 							expandedRowRender: (record) => (
-                                <>
-                                {/* <Row gutter={[8, 8]}>
+								<>
+									{/* <Row gutter={[8, 8]}>
                                     <Col span={12}>
                                         <Text strong>Booking:</Text>
                                     </Col>
@@ -106,26 +141,26 @@ const BookingList = () => {
                                     </Col>
                                     <Col span={12}>{record.price}</Col>
                                 </Row> */}
-                                
-								<div className="booking-card">
-									<div>
-										<strong>Booking:</strong> {record.code}
+
+									<div className="booking-card">
+										<div>
+											<strong>Booking:</strong> {record.code}
+										</div>
+										<div>
+											<strong>Customer:</strong>{" "}
+											{record.customer}
+										</div>
+										<div>
+											<strong>Date:</strong> {record.date}
+										</div>
+										<div>
+											<strong>Price:</strong> {record.price} €
+										</div>
+										<div>
+											<strong>Status:</strong> {record.status}
+										</div>
 									</div>
-									<div>
-										<strong>Customer:</strong>{" "}
-										{record.customer}
-									</div>
-									<div>
-										<strong>Date:</strong> {record.date}
-									</div>
-									<div>
-										<strong>Price:</strong> {record.price} €
-									</div>
-									<div>
-										<strong>Status:</strong> {record.status}
-									</div>
-								</div>
-                                </>
+								</>
 							),
 							expandRowByClick: true,
 						}

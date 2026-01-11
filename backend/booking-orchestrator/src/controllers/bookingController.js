@@ -1,6 +1,7 @@
 const businessServiceClient = require("../clients/businessServiceClient");
 const asyncHandler = require("express-async-handler");
 const dataServiceClient = require("../clients/dataServiceClient");
+const paypalAdapterClient = require("../clients/paypalAdapterClient");
 
 const test = asyncHandler(async (req, res) => {
     res.status(200).json({ message: "Booking Controller is working!" });
@@ -42,32 +43,39 @@ const startBookingProcess = asyncHandler(async (req, res) => {
 const confirmBooking = asyncHandler(async (req, res) => {
     const { orderID, reservationId } = req.body;
 
+    const userId = "648a1f4e2f8fb814c8d6f9b1"; // TODO: get from auth
+
     if (!orderID || !reservationId) {
         return res.status(400).json({ message: "Missing required data" });
     }
 
     const capturedOrder = await paypalAdapterClient.captureOrder({ orderID });
 
-    const { captureId, status } = capturedOrder;
+    const { captureId, status, pricePaid } = capturedOrder;
 
     if (status === "COMPLETED") {
+        // I try to book the reservation
+        const bookingResult = await businessServiceClient.createBooking({
+            userId,
+            reservationId,
+            transactionId: orderID,
+            price: pricePaid
+        });
 
-        // const reservation = await getReservationById(reservationId);
-        const reservation = { expired: true }; // TODO: fetch reservation details
+        if (!bookingResult) {
+            // Booking failed, refund the user
 
-        if (reservation.expired) {
-            // refund via paypal
             const refundedOrder = await paypalAdapterClient.refundOrder({
                 captureId: captureId,
                 reservationId
             });
 
-            console.log("Refunded order:", refundedOrder);
-        } else {
-            // confirm reservation via business service
+            console.log("Refunded order due to booking failure:", refundedOrder);
+
+            return res.status(500).json({ error: "Booking failed, payment refunded" });
         }
     } else {
-
+        return res.status(400).json({ error: "Payment not completed" });
     }
 
     return res.status(200).json({
@@ -101,13 +109,15 @@ const cancelReservation = asyncHandler(async (req, res) => {
     });
 });
 
-const getBookingsForUser = asyncHandler(async (req, res) => {
-    const { userId } = req.body;
+const getUserBookings = asyncHandler(async (req, res) => {
+    const userId = "648a1f4e2f8fb814c8d6f9b1"; // TODO: get from auth
 
-    const result = await dataServiceClient.getBookingsForUser(userId);
+    const result = await businessServiceClient.getUserBookings(userId);
+
+    console.log("User bookings retrieved:", result.bookings);
 
     res.status(200).json({
-        data: result,
+        data: result.bookings,
     });
 });
 
@@ -116,6 +126,6 @@ module.exports = {
     startBookingProcess,
     getPendingReservation,
     cancelReservation,
-    getBookingsForUser,
+    getUserBookings,
     confirmBooking,
 };

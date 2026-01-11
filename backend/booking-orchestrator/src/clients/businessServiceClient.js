@@ -51,11 +51,22 @@ class BusinessServiceClient {
 		}
 	}
 
-	async getBookingsForUser(userId) {
+	async getUserBookings(userId) {
+		try {
+			const response = await axios.get(
+				`${BUSINESS_SERVICE_URL}/api/business/bookings/user/${userId}`
+			);
+			return response.data.data;
+		} catch (error) {
+			throw new Error(`Business service error: ${error.message}`);
+		}
+	}
+
+	async createBooking(bookingData) {
 		try {
 			const response = await axios.post(
-				`${BUSINESS_SERVICE_URL}/api/business/bookings/user`,
-				{ userId }
+				`${BUSINESS_SERVICE_URL}/api/business/bookings`,
+				bookingData
 			);
 			return response.data.data;
 		} catch (error) {

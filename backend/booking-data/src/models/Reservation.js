@@ -17,7 +17,7 @@ const reservationSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ["held", "conmpleted", "cancelled", "expired"],
+            enum: ["held", "completed", "cancelled", "expired"],
             default: "held",
         },
         expiration: {

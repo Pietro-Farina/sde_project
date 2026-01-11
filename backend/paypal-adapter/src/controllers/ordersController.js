@@ -67,13 +67,15 @@ const captureOrder = asyncHandler(async (req, res) => {
 
         const status = response.result.status;
         const captureId = response.result.purchaseUnits[0].payments.captures[0].id;
+        const pricePaid = response.result.purchaseUnits[0].payments.captures[0].amount.value;
 
         console.log("Status:", status, "Capture ID:", captureId);
 
         return res.status(200).json({
             data: {
                 status,
-                captureId
+                captureId,
+                pricePaid
             }
         });
     } catch (error) {
