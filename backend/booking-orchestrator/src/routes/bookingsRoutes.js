@@ -12,6 +12,7 @@ const bookingController = require('../controllers/bookingController');
 // router.post('/bookings/:id/cancel', bookingController.cancel);
 
 router.post('/start', bookingController.startBookingProcess);
+router.post('/confirm', bookingController.confirmBooking);
 
 router.post('/reservations/pending', bookingController.getPendingReservation);
 router.patch('/reservations/:reservationId/cancel', bookingController.cancelReservation);

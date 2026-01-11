@@ -7,7 +7,7 @@ import { StepPayment } from "./StepPayment";
 import { useSlots } from "../../hooks/useSlots";
 import { useParams } from "react-router";
 import { useGetCourseByIdQuery } from "../courses/coursesApiSlice";
-import { useStartBookingProcessMutation, useGetActiveReservationQuery, useCancelActiveReservationMutation } from "./bookingApiSlice";
+import { useStartBookingProcessMutation, useGetActiveReservationQuery, useCancelActiveReservationMutation, useConfirmBookingMutation } from "./bookingApiSlice";
 import { usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { useGlobalSpinner } from "../../app/providers/GlobalSpinnerProvider";
 
@@ -81,6 +81,17 @@ export default function CourseBookingPage() {
 		}
 	] = useStartBookingProcessMutation();
 
+	const [
+		confirmBooking,
+		{
+			data: confirmationData,
+			isLoading: isConfirmationLoading,
+			isSuccess: isConfirmationSuccess,
+			isError: isConfirmationError,
+			error: confirmationError,
+		}
+	] = useConfirmBookingMutation();
+
     useEffect(() => {
         if (isLoading) {
             show();
@@ -121,7 +132,7 @@ export default function CourseBookingPage() {
 			// Handle result (e.g., proceed to payment)
 			// return order ID
 			console.log("Booking started: ", result);
-			return result.orderID;
+			return result.data.orderID;
 		} catch (err) {
 			console.error("Failed to start booking process: ", err);
 			throw new Error(`Failed to start booking process: ${err.message}`);
@@ -193,7 +204,9 @@ export default function CourseBookingPage() {
 				selectedSlots={selectedSlots}
 				course={course}
 				optionSelected={optionSelected}
-				onPaymentInitiated={handleStartBooking}
+				handleStartBooking={handleStartBooking}
+				confirmBooking={confirmBooking}
+				reservationData={reservationData}
 				/>}
 
 			{/* Sticky / bottom guide */}

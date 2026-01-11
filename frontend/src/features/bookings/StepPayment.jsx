@@ -2,9 +2,9 @@ import React from 'react'
 import { PayPalButtons, usePayPalScriptReducer } from "@paypal/react-paypal-js";
 import { Card, message } from 'antd';
 
-export const StepPayment = ({ selectedSlots, course, optionSelected, onPaymentInitiated }) => {
+export const StepPayment = ({ selectedSlots, course, optionSelected, handleStartBooking, reservationData, confirmBooking }) => {
   const [{ isInitial, isPending, isResolved, isRejected }, dispatch] = usePayPalScriptReducer();
-  
+
 
   return (
     <Card>
@@ -22,14 +22,18 @@ export const StepPayment = ({ selectedSlots, course, optionSelected, onPaymentIn
       {isResolved && (
         <PayPalButtons
           createOrder={async () => {
-            // const res = onPaymentInitiated();
+            // const res = await handleStartBooking();
             // const res = await fetch("/api/paypal/create-order", { method: "POST" });
             // const data = await res.json();
             // return data.orderID;
             try {
-              const res = await fetch("/api/paypal/create-order", { method: "POST" });
-              const data = await res.json();
-              return data.orderID;
+              // const res = await fetch("/api/paypal/create-order", { method: "POST" });
+              // const data = await res.json();
+              // return data.orderID;
+
+              const orderID = await handleStartBooking();
+              console.log("RETURNED:", orderID)
+              return orderID;
             } catch (err) {
               console.error("Failed to create order: ", err);
               throw new Error(`Failed to create order: ${err.message}`);
@@ -37,12 +41,18 @@ export const StepPayment = ({ selectedSlots, course, optionSelected, onPaymentIn
           }}
           onApprove={async (data) => {
             // call your backend to capture
-            await fetch("/api/paypal/capture-order", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ orderID: data.orderID })
-            });
-            alert("Payment successful!");
+            try {
+              console.log("ON APPROVE: orderID:", data.orderID);
+              //
+              const res = await confirmBooking({
+                orderID: data.orderID, reservationId: reservationData.reservationId
+              });
+              console.log("Capture result:", res);
+              message.success("Payment completed successfully!");
+            } catch (err) {
+              console.error("Payment capture failed: ", err);
+              throw new Error(`Failed to create order: ${err.message}`);
+            }
           }}
           onError={(err) => {
             console.error(err);

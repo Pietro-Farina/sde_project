@@ -46,11 +46,27 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
             }),
             invalidatesTags: [{ type: 'Booking', id: 'LIST' }],
             transformResponse: (responseData) => {
+                console.log("FROM apiSlice: ", responseData.data)
                 return responseData.data;
             },
             providesTags: (result, error, arg) => {
-                return [{ type: 'Reservation', id: result?.id }]
+                return [{ type: 'Reservation', id: result?.reservationId }]
             }
+        }),
+        confirmBooking: builder.mutation({
+            query: (confirmationData) => ({
+                url: '/bookings/confirm',
+                method: 'POST',
+                body: confirmationData,
+                validateStatus: (response, result) => {
+                    return response.status === 200 && !result.isError
+                },
+            }),
+            invalidatesTags: [{ type: 'Booking', id: 'LIST' }],
+            transformResponse: (responseData) => {
+                console.log("FROM apiSlice: ", responseData.data)
+                return responseData.data;
+            },
         }),
         getActiveReservation: builder.query({
             query: (reservationData) => ({
@@ -88,6 +104,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
 export const {
     useGetBookingsQuery,
     useStartBookingProcessMutation,
+    useConfirmBookingMutation,
     useGetActiveReservationQuery,
     useCancelActiveReservationMutation,
 } = bookingsApiSlice;

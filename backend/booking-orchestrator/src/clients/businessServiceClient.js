@@ -8,7 +8,7 @@ class BusinessServiceClient {
 			const response = await axios.get(
 				`${BUSINESS_SERVICE_URL}/api/business/bookings`
 			);
-			return response.data;
+			return response.data.data;
 		} catch (error) {
 			throw new Error(`Business service error: ${error.message}`);
 		}

@@ -9,6 +9,13 @@ const app = express();
 const PORT = process.env.PORT || 3003;
 
 // app.use(cors(corsOptions));
+app.use((req, res, next) => {
+  const dateTime = new Date().toISOString();
+  const logItem = `${dateTime}\t${req.method}\t${req.url}\t${req.headers.origin}\n`
+  if (!req.url.includes('/health'))
+    console.log(logItem);
+  next();
+});
 app.use(cors());
 app.use(express.json());
 
@@ -38,4 +45,8 @@ app.use((err, req, res, next) => {
 	console.error(err.stack);
 
 	res.status(500).json({ message: "Internal Server Error" });
+});
+
+app.listen(PORT, () => {
+  console.log(`Paypal Adapter Service running on port ${PORT}`);
 });

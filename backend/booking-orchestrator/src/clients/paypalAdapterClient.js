@@ -1,0 +1,43 @@
+const axios = require("axios");
+
+const PAYPAL_ADAPTER_SERVICE_URL = process.env.PAYPAL_ADAPTER_SERVICE_URL || "http://localhost:3003";
+
+class PaypalAdapterClient {
+    async createOrder(orderData) {
+        try {
+            const response = await axios.post(
+                `${PAYPAL_ADAPTER_SERVICE_URL}/api/paypal/orders/create`,
+                orderData
+            );
+            return response.data.data;
+        } catch (error) {
+            throw new Error(`Paypal Adapter service error: ${error.message}`);
+        }
+    }
+
+    async captureOrder(captureData) {
+        try {
+            const response = await axios.post(
+                `${PAYPAL_ADAPTER_SERVICE_URL}/api/paypal/orders/capture`,
+                captureData
+            );
+            return response.data.data;
+        } catch (error) {
+            throw new Error(`Paypal Adapter service error: ${error.message}`);
+        }
+    }
+
+    async refundOrder(refundData) {
+        try {
+            const response = await axios.post(
+                `${PAYPAL_ADAPTER_SERVICE_URL}/api/paypal/orders/refund`,
+                refundData
+            );
+            return response.data.data;
+        } catch (error) {
+            throw new Error(`Paypal Adapter service error: ${error.message}`);
+        }
+    }
+}
+
+module.exports = new PaypalAdapterClient();
