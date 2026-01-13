@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const routes = require('./routes'); // Import the combined router from routes/index.js
 const allowedOrigins = require('./config/allowedOrigin');
 
@@ -32,6 +33,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 // Health check
 app.get("/health", (req, res) => {
@@ -55,6 +57,22 @@ app.get("/api", (req, res) => {
 
 // Routes
 app.use("/api", routes);
+
+app.get("/__test/set-cookie", (req, res) => {
+  res.cookie("test_cookie", "ok", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: false, // FONDAMENTALE
+  });
+
+  res.send("cookie set");
+});
+app.get("/__test/check-cookie", (req, res) => {
+  res.json({
+    cookiesHeader: req.headers.cookie || null,
+  });
+});
+
 
 app.all('*', (req, res) => {
     res.status(404)
