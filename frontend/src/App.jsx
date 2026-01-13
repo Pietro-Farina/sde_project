@@ -6,6 +6,7 @@ import CourseCalendar from "./features/bookings/CourseCalendar";
 import CourseBookingPage from "./features/bookings/CourseBookingPage";
 import BookingList from "./features/bookings/BookingList";
 import LoginPage from "./features/auth/Login";
+import ProtectedRoute from "./features/auth/ProtectedRoute";
 
 function App() {
 	return (
@@ -13,13 +14,14 @@ function App() {
 			<Route path="/">
 				{/* Public routes */}
 				<Route index element={<CoursesGrid />} />
-                <Route path="courses" element={<CoursesGrid />} />
+				<Route path="courses" element={<CoursesGrid />} />
 				<Route path="login" element={<LoginPage />} />
-				<Route path="logout" element={<LoginPage />} />
 
 				{/* Protected routes */}
-				<Route path="book/:id" element={<CourseBookingPage />} />
-				<Route path="bookings" element={<BookingList />} />
+				<Route element={<ProtectedRoute />}>
+					<Route path="book/:id" element={<CourseBookingPage />} />
+					<Route path="bookings" element={<BookingList />} />
+				</Route>
 			</Route>
 		</Routes>
 	);

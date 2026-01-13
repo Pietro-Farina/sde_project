@@ -12,7 +12,7 @@ export const coursesApiSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
         getCourses: builder.query({
             query: () => ({
-                url: '/courses',
+                url: '/api/courses',
                 method: 'GET',
                 validateStatus: (response, result) => {
                     return response.status === 200 && !result.isError;
@@ -37,7 +37,7 @@ export const coursesApiSlice = apiSlice.injectEndpoints({
         }),
         getCourseById: builder.query({
             query: (id) => ({
-                url: `/courses/${id}`,
+                url: `/api/courses/${id}`,
                 method: 'GET',
                 validateStatus: (response, result) => {
                     return response.status === 200 && !result.isError

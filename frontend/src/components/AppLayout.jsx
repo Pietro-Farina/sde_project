@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ResponsiveSidebar from "./ResponsiveSidebar";
 import { useAppResponsive } from "../app/providers/ResponsiveProvider";
 import { SidebarMenu } from "./SidebarMenu.jsx";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
+import AuthButton from "../features/auth/AuthButton.jsx";
 
 const { Header, Content } = Layout;
 const { useBreakpoint } = Grid;
@@ -15,15 +16,19 @@ export default function AppLayout({ children }) {
 	const screens = useBreakpoint();
 	console.log(screens);
 	const { isMobile, isTablet } = useAppResponsive();
+	const location = useLocation();
 
 	const [collapsed, setCollapsed] = useState(false);
 	const [drawerOpen, setDrawerOpen] = useState(false);
 	const { token } = theme.useToken();
-    const navigate = useNavigate();
 
 	const layoutModeRef = useRef(null); // "mobile" | "tablet" | "desktop"
 
-    const isLogged = true; // TODO: get from auth state
+	const isLogged = true; // TODO: get from auth state
+
+	const showAuthButton = useMemo(() => {
+		return !location.pathname.startsWith("/login");
+	}, [location.pathname]);
 
 	useEffect(() => {
 		let newMode;
@@ -90,8 +95,8 @@ export default function AppLayout({ children }) {
 							onClick={toggleSidebar}
 						/>
 						<Divider type="vertical" />
-						<Title level={4} style={{ margin: 0 }} 
-                            >
+						<Title level={4} style={{ margin: 0 }}
+						>
 							Booking App
 						</Title>
 					</div>
@@ -101,11 +106,10 @@ export default function AppLayout({ children }) {
 						style={{ marginLeft: "auto", display: "flex", gap: 12 }}
 					>
 						{/* User avatar, notifications, etc. */}
-                        {isLogged ? <Button
-                        onClick={() => navigate("/logout")}
-                        >Logout</Button> : <Button
-                        onClick={() => navigate("/login")}
-                        >Login</Button>}
+						{
+							showAuthButton &&
+							<AuthButton />
+						}
 					</div>
 				</Header>
 
