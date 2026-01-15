@@ -1,6 +1,8 @@
 require('dotenv').config();
 
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const cors = require('cors');
 const bookingRoutes = require('./routes/bookingRoutes');
 
@@ -25,6 +27,12 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/business', bookingRoutes);
+
+app.get("/openapi.json", (req, res) => {
+  const specPath = path.join(__dirname, "openapi.json");
+  const spec = fs.readFileSync(specPath, "utf-8");
+  res.type("application/json").send(spec);
+});
 
 app.all('*', (req, res) => {
     res.status(404)

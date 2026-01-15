@@ -1,8 +1,11 @@
 require('dotenv').config();
 
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const cors = require('cors');
 const passport = require("passport");
+const allowedOrigins = require('./config/allowedOrigin');
 
 require("./passport/google"); // registers strategy
 // const corsOptions = require('./config/corsOptions')
@@ -47,6 +50,12 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/oauth', routes);
+
+app.get("/openapi.json", (req, res) => {
+  const specPath = path.join(__dirname, "openapi.json");
+  const spec = fs.readFileSync(specPath, "utf-8");
+  res.type("application/json").send(spec);
+});
 
 // 404 handler
 app.all('*', (req, res) => {

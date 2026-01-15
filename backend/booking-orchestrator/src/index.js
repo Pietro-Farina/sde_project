@@ -1,4 +1,6 @@
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const routes = require('./routes'); // Import the combined router from routes/index.js
@@ -57,6 +59,12 @@ app.get("/api", (req, res) => {
 
 // Routes
 app.use("/api", routes);
+
+app.get("/openapi.json", (req, res) => {
+	const specPath = path.join(__dirname, "openapi.json");
+	const spec = fs.readFileSync(specPath, "utf-8");
+  res.type("application/json").send(spec);
+});
 
 app.get("/__test/set-cookie", (req, res) => {
   res.cookie("test_cookie", "ok", {

@@ -1,6 +1,8 @@
 require('dotenv').config();
 
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const cors = require('cors');
 // const corsOptions = require('./config/corsOptions')
 const routes = require('./routes'); // Import the combined router from routes/index.js
@@ -26,6 +28,12 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/paypal', routes);
+
+app.get("/openapi.json", (req, res) => {
+  const specPath = path.join(__dirname, "openapi.json");
+  const spec = fs.readFileSync(specPath, "utf-8");
+  res.type("application/json").send(spec);
+});
 
 // 404 handler
 app.all('*', (req, res) => {

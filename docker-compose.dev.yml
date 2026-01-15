@@ -145,3 +145,15 @@ services:
     depends_on:
       - data-service
     restart: unless-stopped
+
+  # API Documentation Server
+  api-docs-server:
+    build: ./api-docs
+    ports:
+      - "4000:4000"
+    depends_on:
+      - booking-orchestrator
+      - booking-logic
+      - data-service
+      - paypal-adapter
+      - oauth-adapter
