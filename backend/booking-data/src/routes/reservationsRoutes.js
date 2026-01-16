@@ -3,11 +3,11 @@ const router = express.Router();
 const reservationsController = require("../controllers/reservationsController");
 
 router
-    .get("/", reservationsController.getAllReservations)
+    .get("/", reservationsController.getReservations)
     .post("/", reservationsController.createReservationWithTransaction);
 
 router
-    .post("/cleanup-expired", reservationsController.cleanupExpiredReservations);
+    .patch("/cleanup", reservationsController.cleanupExpiredReservations);
 
 router
     .get("/:id", reservationsController.getReservationById)

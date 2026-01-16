@@ -1,8 +1,1304 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Booking Data API",
+    "title": "Booking Data Service API",
+    "description": "Example workspace",
     "version": "1.0.0"
   },
-  "paths": {}
+  "paths": {
+    "/api/v1/bookings": {
+      "get": {
+        "operationId": "retrieveBookingsWithOptionalFilters",
+        "tags": [
+          "bookings"
+        ],
+        "summary": "Retrieve bookings with optional filters",
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookings": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Bookings"
+                          }
+                        }
+                      },
+                      "required": [
+                        "bookings"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "bookingsResponse": {
+                    "summary": "A list of bookings",
+                    "value": {
+                      "data": {
+                        "bookings": [
+                          {
+                            "_id": "69642e1f21d2db02c99b9aec",
+                            "course": "695ba111b2e63b75bee66279",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "reservation": "69642e1921d2db02c99b9ae8",
+                            "slots": [
+                              "695ba111b2e63b75bee6627b"
+                            ],
+                            "status": "confirmed",
+                            "transactionId": "6KT41896LL345210G",
+                            "price": "49.00",
+                            "createdAt": "2026-01-11T23:11:27.530Z",
+                            "updatedAt": "2026-01-11T23:11:27.530Z",
+                            "__v": 0
+                          },
+                          {
+                            "_id": "6969609fe8d3650f299ea570",
+                            "course": "695ba111b2e63b75bee66279",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "reservation": "69696094e8d3650f299ea56c",
+                            "slots": [
+                              "695ba111b2e63b75bee6627b",
+                              "695ba111b2e63b75bee6627a"
+                            ],
+                            "status": "confirmed",
+                            "transactionId": "6MC33684BA3458225",
+                            "price": "89.00",
+                            "createdAt": "2026-01-15T21:48:15.941Z",
+                            "updatedAt": "2026-01-15T21:48:15.941Z",
+                            "__v": 0
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The server encountered an unexpected condition that prevented it from fulfilling the request. Report the issue to the support team if it persists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userId",
+            "required": false,
+            "style": "form",
+            "description": "ID of the user holding the bookings",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "allowReserved": false
+          }
+        ],
+        "description": "Returns a list of bookings from the data store.\n\nThe endpoint supports optional query parameters to filter the results.\nWhen no filters are provided, all bookings are returned.\n\nCurrently supported filters:\n- `userId`:  returns only bookings associated with the specified user."
+      },
+      "post": {
+        "operationId": "createABookingAtomically",
+        "tags": [
+          "bookings"
+        ],
+        "summary": "Create a Booking atomically",
+        "responses": {
+          "201": {
+            "description": "The request was successful: a new booking was created and the reservation was flagged as confirmed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "booking": {
+                          "$ref": "#/components/schemas/Bookings"
+                        }
+                      },
+                      "required": [
+                        "booking"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "createBookingResponse": {
+                    "summary": "Example booking creation response",
+                    "value": {
+                      "data": {
+                        "booking": {
+                          "_id": "69642e1f21d2db02c99b9aec",
+                          "course": "695ba111b2e63b75bee66279",
+                          "user": "648a1f4e2f8fb814c8d6f9b1",
+                          "reservation": "69642e1921d2db02c99b9ae8",
+                          "slots": [
+                            "695ba111b2e63b75bee6627b"
+                          ],
+                          "status": "confirmed",
+                          "transactionId": "6KT41896LL345210G",
+                          "price": "49.00",
+                          "createdAt": "2026-01-11T23:11:27.530Z",
+                          "updatedAt": "2026-01-11T23:11:27.530Z",
+                          "__v": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Creates a booking record and finalizes the associated reservation within a single atomic operation.\n\nThe endpoint validates the provided booking data and executes all database operations inside a transaction.\nUpon successful booking creation, the related reservation is transitioned to the `completed` state.\n\nIn case of failure, all changes are rolled back to preserve consistency.",
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "courseId": {
+                    "type": "string"
+                  },
+                  "userId": {
+                    "type": "string"
+                  },
+                  "reservationId": {
+                    "type": "string"
+                  },
+                  "slots": {
+                    "type": "string"
+                  },
+                  "transactionId": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "courseId",
+                  "userId",
+                  "reservationId",
+                  "slots",
+                  "transactionId",
+                  "price"
+                ]
+              },
+              "examples": {
+                "createBookingRequest": {
+                  "summary": "Example booking creation request",
+                  "value": {
+                    "courseId": "695ba111b2e63b75bee6627e",
+                    "userId": "648a1f4e2f8fb814c8d6f9b1",
+                    "reservationId": "69696655989dec9e8a6e9fed",
+                    "slots": [
+                      "695ba111b2e63b75bee6627f"
+                    ],
+                    "transactionId": "05V54435V6286635A",
+                    "price": "99.00"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses": {
+      "get": {
+        "operationId": "getAllCourses",
+        "tags": [
+          "courses"
+        ],
+        "summary": "Retrieve the list of all available courses.",
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "courses": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Course"
+                          }
+                        }
+                      },
+                      "required": [
+                        "courses"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "coursesResponse": {
+                    "summary": "A list of courses",
+                    "value": {
+                      "data": {
+                        "courses": [
+                          {
+                            "_id": "695ba111b2e63b75bee66279",
+                            "name": "Introduction to Web Development",
+                            "description": "Learn the basics of HTML, CSS, and JavaScript to build modern web pages.",
+                            "slots": [
+                              {
+                                "start": "2026-03-10T09:00:00.000Z",
+                                "end": "2026-03-10T13:00:00.000Z",
+                                "capacity": 20,
+                                "available": 20,
+                                "_id": "695ba111b2e63b75bee6627a"
+                              },
+                              {
+                                "start": "2026-03-12T14:00:00.000Z",
+                                "end": "2026-03-12T18:00:00.000Z",
+                                "capacity": 20,
+                                "available": 14,
+                                "_id": "695ba111b2e63b75bee6627b"
+                              },
+                              {
+                                "start": "2026-03-15T14:00:00.000Z",
+                                "end": "2026-03-15T18:00:00.000Z",
+                                "capacity": 20,
+                                "available": 20,
+                                "_id": "695ee7f30b5f48720cad5c81"
+                              }
+                            ],
+                            "open": true,
+                            "priceOptions": [
+                              {
+                                "numberSlots": 1,
+                                "price": "49.00",
+                                "_id": "695ba111b2e63b75bee6627c"
+                              },
+                              {
+                                "numberSlots": 2,
+                                "price": "89.00",
+                                "_id": "695ba111b2e63b75bee6627d"
+                              }
+                            ],
+                            "__v": 0,
+                            "createdAt": "2026-01-05T11:31:29.809Z",
+                            "updatedAt": "2026-01-15T22:10:00.827Z"
+                          },
+                          {
+                            "_id": "695ba111b2e63b75bee6627e",
+                            "name": "Advanced Node.js and Backend APIs",
+                            "description": "Deep dive into Node.js, Express, and REST API design with real-world patterns.",
+                            "slots": [
+                              {
+                                "start": "2026-03-18T09:00:00.000Z",
+                                "end": "2026-03-18T17:00:00.000Z",
+                                "capacity": 15,
+                                "available": 9,
+                                "_id": "695ba111b2e63b75bee6627f"
+                              },
+                              {
+                                "start": "2026-03-22T09:00:00.000Z",
+                                "end": "2026-03-25T17:00:00.000Z",
+                                "capacity": 15,
+                                "available": 15,
+                                "_id": "695ba111b2e63b75bee66280"
+                              }
+                            ],
+                            "open": true,
+                            "priceOptions": [
+                              {
+                                "numberSlots": 1,
+                                "price": "99.00",
+                                "_id": "695ba111b2e63b75bee66281"
+                              },
+                              {
+                                "numberSlots": 2,
+                                "price": "179.00",
+                                "_id": "695ba111b2e63b75bee66282"
+                              },
+                              {
+                                "numberSlots": 3,
+                                "price": "249.00",
+                                "_id": "695ba111b2e63b75bee66283"
+                              }
+                            ],
+                            "__v": 0,
+                            "createdAt": "2026-01-05T11:31:29.810Z",
+                            "updatedAt": "2026-01-15T22:30:00.867Z"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [],
+        "description": "Returns all course records stored in the data service.\nThis endpoint performs a read-only operation and does not apply filtering or pagination. The response contains an array of course objects wrapped inside a `data` envelope."
+      }
+    },
+    "/api/v1/courses/{id}": {
+      "get": {
+        "operationId": "getCourseById",
+        "tags": [
+          "courses"
+        ],
+        "summary": "Retrieve a single course by its id.",
+        "description": "Fetches a specific course using its MongoDB ObjectId.\nThe endpoint validates the presence and format of the identifier before querying the database.\nIf the course exists, it is returned inside a `data` envelope.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": false,
+            "style": "form",
+            "description": "ID of the course to retrieve.",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sampleCourseId": {
+                "value": "695ba111b2e63b75bee66279"
+              }
+            },
+            "allowReserved": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "course": {
+                          "$ref": "#/components/schemas/Course"
+                        }
+                      },
+                      "required": [
+                        "course"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "courseResponse": {
+                    "summary": "Example course retrieval response",
+                    "value": {
+                      "data": {
+                        "course": {
+                          "_id": "695ba111b2e63b75bee66279",
+                          "name": "Introduction to Web Development",
+                          "description": "Learn the basics of HTML, CSS, and JavaScript to build modern web pages.",
+                          "slots": [
+                            {
+                              "start": "2026-03-10T09:00:00.000Z",
+                              "end": "2026-03-10T13:00:00.000Z",
+                              "capacity": 20,
+                              "available": 20,
+                              "_id": "695ba111b2e63b75bee6627a"
+                            },
+                            {
+                              "start": "2026-03-12T14:00:00.000Z",
+                              "end": "2026-03-12T18:00:00.000Z",
+                              "capacity": 20,
+                              "available": 14,
+                              "_id": "695ba111b2e63b75bee6627b"
+                            },
+                            {
+                              "start": "2026-03-15T14:00:00.000Z",
+                              "end": "2026-03-15T18:00:00.000Z",
+                              "capacity": 20,
+                              "available": 20,
+                              "_id": "695ee7f30b5f48720cad5c81"
+                            }
+                          ],
+                          "open": true,
+                          "priceOptions": [
+                            {
+                              "numberSlots": 1,
+                              "price": "49.00",
+                              "_id": "695ba111b2e63b75bee6627c"
+                            },
+                            {
+                              "numberSlots": 2,
+                              "price": "89.00",
+                              "_id": "695ba111b2e63b75bee6627d"
+                            }
+                          ],
+                          "__v": 0,
+                          "createdAt": "2026-01-05T11:31:29.809Z",
+                          "updatedAt": "2026-01-15T22:10:00.827Z"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/reservations": {
+      "get": {
+        "operationId": "getReservations",
+        "tags": [
+          "reservations"
+        ],
+        "summary": "Retrieve reservations with optional filtering.",
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservations": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Reservation"
+                          }
+                        }
+                      },
+                      "required": [
+                        "reservations"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "reservationsResponse": {
+                    "summary": "A list of reservations",
+                    "value": {
+                      "data": {
+                        "reservations": [
+                          {
+                            "_id": "695d651ad97543f2ef9b5231",
+                            "course": "695ba111b2e63b75bee6627e",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "slots": [
+                              "695ba111b2e63b75bee6627f",
+                              "695ba111b2e63b75bee66280"
+                            ],
+                            "status": "cancelled",
+                            "expiration": "2026-01-06T19:55:10.345Z",
+                            "createdAt": "2026-01-06T19:40:10.351Z",
+                            "updatedAt": "2026-01-07T18:30:01.202Z",
+                            "__v": 0
+                          },
+                          {
+                            "_id": "695d656ed97543f2ef9b523c",
+                            "course": "695ba111b2e63b75bee6627e",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "slots": [
+                              "695ba111b2e63b75bee6627f",
+                              "695ba111b2e63b75bee66280"
+                            ],
+                            "status": "confirmed",
+                            "expiration": "2026-01-06T19:56:34.674Z",
+                            "createdAt": "2026-01-06T19:41:34.675Z",
+                            "updatedAt": "2026-01-07T17:07:00.497Z",
+                            "__v": 0
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userId",
+            "required": false,
+            "style": "form",
+            "description": "ID of the user holding the reservations",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sampleUserId": {
+                "value": "648a1f4e2f8fb814c8d6f9b1"
+              }
+            },
+            "allowReserved": false
+          },
+          {
+            "in": "query",
+            "name": "courseId",
+            "required": false,
+            "style": "form",
+            "description": "ID of the course associated with the reservations",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sampleCourseId": {
+                "value": "695ba111b2e63b75bee6627e"
+              }
+            },
+            "allowReserved": false
+          }
+        ],
+        "description": "Returns a list of reservations from the data store.\n\nThe endpoint supports optional query parameters to filter the results.\nWhen no filters are provided, all reservations are returned.\n\nCurrently supported filters:\n- `userId`:  returns only reservations associated with the specified user.\n- `courseId`:  returns only reservations for the specified course."
+      },
+      "post": {
+        "operationId": "createAReservationAtomically",
+        "tags": [
+          "reservations"
+        ],
+        "summary": "Create a reservation and hold slot availability atomically.",
+        "description": "Creates a new reservation for a course by atomically validating slot availability, decrementing available capacity, and persisting the reservation in a single database transaction.\n\nAll specified slots must exist within the course and have sufficient availability.If any validation fails, no changes are applied.\n\nThe reservation is created in a `held` state and includes an expiration timestamp after which it may be automatically cleaned up.",
+        "responses": {
+          "201": {
+            "description": "The request was successful: a new reservation was created and the slot availability was updated accordingly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservation": {
+                          "$ref": "#/components/schemas/Reservation"
+                        }
+                      },
+                      "required": [
+                        "reservation"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "createReservationResponse": {
+                    "summary": "Example reservation creation response",
+                    "value": {
+                      "data": {
+                        "reservation": {
+                          "course": "695ba111b2e63b75bee66279",
+                          "user": "648a1f4e2f8fb814c8d6f9b1",
+                          "slots": [
+                            "695ee7f30b5f48720cad5c81"
+                          ],
+                          "status": "held",
+                          "expiration": "2026-01-16T00:19:18.552Z",
+                          "_id": "6969808214d2f13caa1e5f16",
+                          "createdAt": "2026-01-16T00:04:18.557Z",
+                          "updatedAt": "2026-01-16T00:04:18.557Z",
+                          "__v": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "test": {
+                    "type": "string"
+                  },
+                  "userId": {
+                    "type": "string"
+                  },
+                  "courseId": {
+                    "type": "string"
+                  },
+                  "slotIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "expiresInMinutes": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "userId",
+                  "courseId",
+                  "slotIds",
+                  "expiresInMinutes"
+                ]
+              },
+              "examples": {
+                "createReservationRequest": {
+                  "summary": "Example reservation creation request",
+                  "value": {
+                    "userId": "648a1f4e2f8fb814c8d6f9b1",
+                    "courseId": "695ba111b2e63b75bee66279",
+                    "slotIds": [
+                      "695ee7f30b5f48720cad5c81"
+                    ],
+                    "expiresInMinutes": 15
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": []
+      }
+    },
+    "/api/v1/reservations/{id}": {
+      "get": {
+        "operationId": "getReservationById",
+        "tags": [
+          "reservations"
+        ],
+        "summary": "Retrieve a reservation by its unique identifier.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "style": "form",
+            "description": "The unique identifier of the reservation to retrieve.",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sampleId": {
+                "value": "695d651ad97543f2ef9b5231"
+              }
+            },
+            "allowReserved": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "reservationResponse": {
+                    "summary": "Example reservation retrieval response",
+                    "value": {
+                      "data": {
+                        "data": {
+                          "reservation": {
+                            "_id": "695d651ad97543f2ef9b5231",
+                            "course": "695ba111b2e63b75bee6627e",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "slots": [
+                              "695ba111b2e63b75bee6627f",
+                              "695ba111b2e63b75bee66280"
+                            ],
+                            "status": "held",
+                            "expiration": "2026-01-06T19:55:10.345Z",
+                            "createdAt": "2026-01-06T19:40:10.351Z",
+                            "updatedAt": "2026-01-07T18:30:01.202Z",
+                            "__v": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Returns a single reservation identified by its unique reservation ID.\n\nThe endpoint validates the ID format and returns an error if the reservation does not exist."
+      }
+    },
+    "/api/v1/reservations/{id}/cancel": {
+      "patch": {
+        "operationId": "cancelAReservation",
+        "tags": [
+          "reservations"
+        ],
+        "summary": "Cancel a reservation and restore slot availability.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "style": "form",
+            "description": "The unique identifier of the reservation to cancel.",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sampleId": {
+                "value": "695d651ad97543f2ef9b5231"
+              }
+            },
+            "allowReserved": false
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/No Content"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Cancels an existing reservation and restores the associated slot availability in a single database transaction.\n\nThe reservation must exist and reference a valid course and slots. If any part of the operation fails, no changes are committed.\n\nUpon success, the reservation status is updated to `cancelled` and no response body is returned"
+      }
+    },
+    "/api/v1/reservations/cleanup": {
+      "patch": {
+        "operationId": "cleanupExpiredReservations",
+        "tags": [
+          "reservations"
+        ],
+        "summary": "Clean up expired held reservations.",
+        "description": "Identifies expired reservations in held status and cancels them in batches.\n\nFor each expired reservation:\n- Slot availability is restored\n- Reservation status is set to cancelled\n- Operations are executed transactionally per reservation\n\nThe endpoint returns a summary of processed, successfully cleaned, and failed reservations.",
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "processed": {
+                          "type": "number"
+                        },
+                        "cleaned": {
+                          "type": "number"
+                        },
+                        "failed": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "processed",
+                        "cleaned",
+                        "failed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "cleanupResponse": {
+                    "summary": "Example cleanup response",
+                    "value": {
+                      "data": {
+                        "processed": 10,
+                        "cleaned": 8,
+                        "failed": 2
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "BadRequest": {
+        "description": "The server could not understand the request due to invalid syntax. The client should modify the request and try again.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message"
+                  ]
+                }
+              },
+              "required": [
+                "error"
+              ]
+            },
+            "examples": {
+              "badRequestResponse": {
+                "summary": "Example bad request response",
+                "value": {
+                  "error": {
+                    "code": "INVALID_BOOKING_DATA",
+                    "message": "Invalid request parameters."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "The server encountered an unexpected condition that prevented it from fulfilling the request. Report the issue to the support team if it persists.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            },
+            "examples": {
+              "internalServerErrorResponse": {
+                "summary": "Example internal server error response",
+                "value": {
+                  "error": {
+                    "code": "BOOKING_CREATION_FAILED",
+                    "message": "Failed to create the booking."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "The request could not be completed due to a conflict with the current state of the resource. Resolve the conflict and try again.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            }
+          }
+        }
+      },
+      "Created": {
+        "description": "The request was successful, and a new resource was created.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "data"
+              ]
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The server cannot find the requested resource. The endpoint may be invalid or the resource may no longer exist.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            },
+            "examples": {
+              "notFoundResponse": {
+                "summary": "Example not found response",
+                "value": {
+                  "error": {
+                    "code": "RESERVATION_NOT_FOUND",
+                    "message": "The specified reservation does not exist."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "No Content": {
+        "description": "The request was successful, but there is no content to return in the response.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "null"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Bookings": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "course": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          },
+          "reservation": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "cancelled"
+            ]
+          },
+          "transactionId": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "__v": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "course",
+          "price",
+          "transactionId",
+          "status",
+          "slots",
+          "reservation",
+          "user",
+          "_id"
+        ],
+        "description": "desc"
+      },
+      "Course": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string"
+                },
+                "end": {
+                  "type": "string"
+                },
+                "capacity": {
+                  "type": "number"
+                },
+                "available": {
+                  "type": "number"
+                },
+                "_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "start",
+                "end",
+                "capacity",
+                "available",
+                "_id"
+              ]
+            }
+          },
+          "open": {
+            "type": "boolean"
+          },
+          "priceOptions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "numberSlots": {
+                  "type": "number"
+                },
+                "price": {
+                  "type": "string"
+                },
+                "_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "numberSlots",
+                "price",
+                "_id"
+              ]
+            }
+          },
+          "_id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "__v": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "slots",
+          "open",
+          "priceOptions",
+          "_id",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "desc"
+      },
+      "Reservation": {
+        "type": "object",
+        "properties": {
+          "course": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "held",
+              "completed",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "expiration": {
+            "type": "string"
+          },
+          "_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "course",
+          "user",
+          "slots",
+          "status",
+          "expiration",
+          "_id"
+        ],
+        "description": "dee"
+      }
+    },
+    "parameters": {
+      "id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "bookings"
+    },
+    {
+      "description": "",
+      "name": "courses"
+    },
+    {
+      "name": "reservations"
+    }
+  ]
 }

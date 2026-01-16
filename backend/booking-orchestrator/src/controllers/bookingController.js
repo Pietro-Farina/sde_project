@@ -114,10 +114,8 @@ const getUserBookings = asyncHandler(async (req, res) => {
 
     const result = await businessServiceClient.getUserBookings(userId);
 
-    console.log("User bookings retrieved:", result.bookings);
-
     res.status(200).json({
-        data: result.bookings,
+        data: result,
     });
 });
 

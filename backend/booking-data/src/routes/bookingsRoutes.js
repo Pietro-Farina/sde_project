@@ -4,6 +4,6 @@ const bookingsController = require("../controllers/bookingsController");
 
 router.post("/", bookingsController.createBookingWithTransaction);
 
-router.get("/user/:userId", bookingsController.getUserBookings);
+router.get("/", bookingsController.getBookings);
 
 module.exports = router;

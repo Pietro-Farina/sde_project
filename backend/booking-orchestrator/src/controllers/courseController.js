@@ -7,7 +7,7 @@ const test = asyncHandler(async (req, res) => {
 
 const getAllCourses = asyncHandler(async (req, res) => {
 	try {
-		const courses = await dataServiceClient.getAllCourses();
+		const { courses } = await dataServiceClient.getAllCourses();
 
 		res.json({ data: courses });
 	} catch (error) {
@@ -23,7 +23,7 @@ const getCourseById = asyncHandler(async (req, res) => {
 	}
 
 	try {
-		const course = await dataServiceClient.getCourseById(id);
+		const { course } = await dataServiceClient.getCourseById(id);
 
 		res.json({ data: course });
 	} catch (error) {

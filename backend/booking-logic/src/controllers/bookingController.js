@@ -12,7 +12,7 @@ const createReservation = asyncHandler(async (req, res) => {
     }
   
     // Check the course and slot availability from data service
-    const course = await dataServiceClient.getCourseById(courseId);
+    const { course } = await dataServiceClient.getCourseById(courseId);
     if (!course) {
         return res.status(400).json({ error: "Invalid reservation data" });
     }
@@ -37,7 +37,7 @@ const createReservation = asyncHandler(async (req, res) => {
         slotIds,
         expiresInMinutes: bookingSettings.reservationExpirationMinutes,
     };
-    const reservation = await dataServiceClient.createReservationIfAvailable(reservationData);
+    const { reservation } = await dataServiceClient.createReservationIfAvailable(reservationData);
 
     if (!reservation) {
         return res.status(500).json({ error: "Failed to create reservation" });
@@ -61,7 +61,7 @@ const getActiveCourseReservationForUser = asyncHandler(async (req, res) => {
     }
 
     // Fetch all reservations from booking-data service
-    const reservations = await dataServiceClient.getCourseReservationsByUserId({  userId, courseId });
+    const { reservations } = await dataServiceClient.getCourseReservationsByUserId({  userId, courseId });
 
     // Filter active reservations
     const now = new Date();
@@ -93,7 +93,7 @@ const cancelReservation = asyncHandler(async (req, res) => {
     }
 
     // Fetch reservation details from booking-data service
-    const reservation = await dataServiceClient.getReservationById(id);
+    const { reservation } = await dataServiceClient.getReservationById(id);
 
     if (!reservation) {
         return res.status(404).json({ error: "Reservation not found" });
@@ -129,7 +129,7 @@ const createBooking = asyncHandler(async (req, res) => {
     }
     
     // I evaluate if the reservations exists, is held, belongs to the user, not expired
-    const reservation = await dataServiceClient.getReservationById(reservationId);
+    const { reservation } = await dataServiceClient.getReservationById(reservationId);
 
     if (!reservation) {
         return res.status(404).json({ error: "Reservation not found" });
@@ -148,7 +148,7 @@ const createBooking = asyncHandler(async (req, res) => {
     }
 
     // I then issue the creation of the booking and the completion of the reservation in a transaction
-    const newBooking = await dataServiceClient.createBooking({
+    const { booking: newBooking } = await dataServiceClient.createBooking({
         courseId: reservation.course.toString(),
         userId,
         reservationId,
@@ -173,7 +173,7 @@ const getUserBookings = asyncHandler(async (req, res) => {
         return res.status(400).json({ error: "Missing user ID" });
     }
 
-    const bookings = await dataServiceClient.getUserBookings(userId);
+    const { bookings } = await dataServiceClient.getUserBookings(userId);
 
     return res.status(200).json({
         data: bookings

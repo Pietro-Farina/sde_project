@@ -140,12 +140,12 @@ services:
   booking-cleanup-cron:
     build: ./backend/booking-cleanup-cron
     environment:
-      - CLEANUP_API_URL=http://data-service:3002/api/data/reservations/cleanup-expired
+      - CLEANUP_API_URL=http://data-service:3002/api/v1/reservations/cleanup
       - CLEANUP_API_KEY=your-internal-api-key # Optional, if you secure the endpoint
     depends_on:
       - data-service
     restart: unless-stopped
-
+  
   # API Documentation Server
   api-docs-server:
     build: ./api-docs

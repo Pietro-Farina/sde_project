@@ -6,7 +6,7 @@ const cleanupSettings = require("../config/cleanupSettings");
 
 const createReservationWithTransaction = asyncHandler(async (req, res) => {
     const { courseId, slotIds, userId, expiresInMinutes } = req.body;
-
+    console.log("Creating reservation with data:", req.body);
     const session = await mongoose.startSession();
     session.startTransaction();
 
@@ -16,7 +16,12 @@ const createReservationWithTransaction = asyncHandler(async (req, res) => {
 
         if (!course) {
             await session.abortTransaction();
-            return res.status(404).json({ error: "Course not found" });
+            return res.status(404).json({
+                error: {
+                    code: "COURSE_NOT_FOUND",
+                    message: "The specified course does not exist."
+                }
+            });
         }
 
         // Validate all slots exist and have available space
@@ -26,14 +31,24 @@ const createReservationWithTransaction = asyncHandler(async (req, res) => {
 
         if (slotsToBook.length !== slotIds.length) {
             await session.abortTransaction();
-            return res.status(400).json({ error: "One or more slots not found" });
+            return res.status(400).json({
+                error: {
+                    code: "SLOTS_NOT_FOUND",
+                    message: "One or more slots were not found in the specified course."
+                }
+            });
         }
 
         const hasAvailability = slotsToBook.every((slot) => slot.available > 0);
 
         if (!hasAvailability) {
             await session.abortTransaction();
-            return res.status(409).json({ error: "Not enough space in one or more slots" });
+            return res.status(409).json({
+                error: {
+                    code: "INSUFFICIENT_SLOT_AVAILABILITY",
+                    message: "Not enough space in one or more slots."
+                }
+            });
         }
 
         // 2. Subtract available space from each slot
@@ -64,14 +79,19 @@ const createReservationWithTransaction = asyncHandler(async (req, res) => {
 
         if (!reservation) {
             await session.abortTransaction();
-            return res.status(500).json({ error: "Failed to create reservation" });
+            return res.status(500).json({
+                error: {
+                    code: "RESERVATION_CREATION_FAILED",
+                    message: "Failed to create reservation."
+                }
+            });
         }
 
         // Commit transaction
         await session.commitTransaction();
 
         res.status(201).json({
-            data: reservation[0]
+            data: { reservation: reservation[0] }
         });
     } catch (error) {
         await session.abortTransaction();
@@ -85,59 +105,82 @@ const getReservationById = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     if (!id) {
-        return res.status(400).json({ error: "Reservation ID is required" });
+        return res.status(400).json({
+            error: {
+                code: "MISSING_RESERVATION_ID",
+                message: "Reservation ID is required."
+            }
+        });
     }
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ error: "Invalid Reservation ID" });
+        return res.status(400).json({
+            error: {
+                code: "INVALID_RESERVATION_ID",
+                message: "The reservation ID provided is not valid."
+            }
+        });
     }
 
     const reservation = await Reservation.findById(id).lean();
 
     if (!reservation) {
-        return res.status(404).json({ error: "Reservation not found" });
+        return res.status(404).json({
+            error: {
+                code: "RESERVATION_NOT_FOUND",
+                message: "The specified reservation does not exist."
+            }
+        });
     }
 
     return res.status(200).json({
-        data: reservation
+        data: { reservation }
     });
 });
 
-const getAllReservations = asyncHandler(async (req, res) => {
-    const reservations = await Reservation.find().lean();
+const getReservations = asyncHandler(async (req, res) => {
+    const { userId, courseId } = req.query;
+
+    if (courseId && !mongoose.Types.ObjectId.isValid(courseId)) {
+        return res.status(400).json({
+            error: {
+                code: "INVALID_COURSE_ID",
+                message: "The course ID provided is not valid."
+            }
+        });
+    }
+
+    const filter = {};
+    if (userId) {
+        filter.user = userId;
+    }
+    if (courseId) {
+        filter.course = courseId;
+    }
+    const reservations = await Reservation.find(filter).lean();
 
     return res.status(200).json({
-        data: reservations
+        data: { reservations }
     });
 });
 
-const updateReservationStatus = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    if (!id || !status) {
-        return res.status(400).json({ error: "Missing required fields" });
-    }
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ error: "Invalid Reservation ID" });
-    }
-    if (!["held", "confirmed", "cancelled"].includes(status)) {
-        return res.status(400).json({ error: "Invalid status value" });
-    }
-
-    // Update reservation status
-});
-
-/**
- * TODO: define when the course slots' availability should be restored
- */
 const cancelReservationWithTransactionById = asyncHandler(async (req, res) => {
     const { id } = req.params;
 
     if (!id) {
-        return res.status(400).json({ error: "Reservation ID is required" });
+        return res.status(400).json({
+            error: {
+                code: "MISSING_RESERVATION_ID",
+                message: "Reservation ID is required."
+            }
+        });
     }
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ error: "Invalid Reservation ID" });
+        return res.status(400).json({
+            error: {
+                code: "INVALID_RESERVATION_ID",
+                message: "The reservation ID provided is not valid."
+            }
+        });
     }
 
     const session = await mongoose.startSession();
@@ -148,7 +191,12 @@ const cancelReservationWithTransactionById = asyncHandler(async (req, res) => {
 
         if (!reservation) {
             await session.abortTransaction();
-            return res.status(404).json({ error: "Reservation not found" });
+            return res.status(404).json({
+                error: {
+                    code: "RESERVATION_NOT_FOUND",
+                    message: "The specified reservation does not exist."
+                }
+            });
         }
 
         // Restore available space in each slot
@@ -156,7 +204,12 @@ const cancelReservationWithTransactionById = asyncHandler(async (req, res) => {
 
         if (!course) {
             await session.abortTransaction();
-            return res.status(404).json({ error: "Reserved Course not found" });
+            return res.status(404).json({
+                error: {
+                    code: "COURSE_NOT_FOUND",
+                    message: "Reserved Course not found."
+                }
+            });
         }
 
         // Validate all slots exist
@@ -165,7 +218,12 @@ const cancelReservationWithTransactionById = asyncHandler(async (req, res) => {
         );
         if (slotsToBook.length !== reservation.slots.length) {
             await session.abortTransaction();
-            return res.status(400).json({ error: "One or more slots not found" });
+            return res.status(400).json({
+                error: {
+                    code: "SLOT_NOT_FOUND",
+                    message: "One or more slots not found."
+                }
+            });
         }
         for (const slotId of reservation.slots) {
             await Course.updateOne(
@@ -184,39 +242,30 @@ const cancelReservationWithTransactionById = asyncHandler(async (req, res) => {
 
         if (!result || result.modifiedCount === 0) {
             await session.abortTransaction();
-            return res.status(500).json({ error: "Failed to cancel reservation" });
+            return res.status(500).json({
+                error: {
+                    code: "FAILED_TO_CANCEL_RESERVATION",
+                    message: "Failed to cancel reservation"
+                }
+            });
         }
 
         // Commit transaction
         await session.commitTransaction();
 
-        res.status(200).json({
-            message: "Reservation cancelled successfully"
-        });
+        res.status(204).send();
     } catch (error) {
         await session.abortTransaction();
-        throw error;
+        throw {
+            status: 500,
+            error: {
+                code: "INTERNAL_SERVER_ERROR",
+                message: "An unexpected error occurred while cancelling the reservation."
+            }
+        };
     } finally {
         session.endSession();
     }
-});
-
-const deleteReservationById = asyncHandler(async (req, res) => {
-    const { id } = req.body;
-
-    if (!id) {
-        return res.status(400).json({ error: "Reservation ID is required" });
-    }
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ error: "Invalid Reservation ID" });
-    }
-
-    const result = await Reservation.deleteOne({ _id: id });
-
-    if (!result || result.deletedCount === 0) {
-        return res.status(404).json({ error: "Reservation not found or already deleted" });
-    }
-    return res.status(204).send();
 });
 
 const cleanupExpiredReservations = asyncHandler(async (req, res) => {
@@ -226,6 +275,9 @@ const cleanupExpiredReservations = asyncHandler(async (req, res) => {
         status: 'held',
         expiration: { $lt: now }
     }).limit(cleanupSettings.batchSize);
+
+    let cleanedCount = 0;
+    let failedCount = 0;
 
     for (const reservation of expiredReservations) {
         const session = await mongoose.startSession();
@@ -258,21 +310,28 @@ const cleanupExpiredReservations = asyncHandler(async (req, res) => {
             }
 
             await session.commitTransaction();
+            cleanedCount++;
         } catch (error) {
             await session.abortTransaction();
             console.error("Error cleaning up reservation " + reservation._id + ": " + error.message);
+            failedCount++;
         } finally {
             session.endSession();
         }
     }
+    res.status(200).json({
+        data: {
+            processed: expiredReservations.length,
+            cleaned: cleanedCount,
+            failed: failedCount
+        }
+    });
 });
 
 module.exports = {
     createReservationWithTransaction,
     getReservationById,
-    getAllReservations,
+    getReservations,
     cancelReservationWithTransactionById,
     cleanupExpiredReservations,
-    // updateReservationStatus,
-    // deleteReservationById,
 };
