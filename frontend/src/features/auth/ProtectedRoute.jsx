@@ -2,6 +2,7 @@ import { Navigate, Outlet } from "react-router";
 import { useCheckMeQuery } from "./authApiSlice";
 import { useEffect } from "react";
 import { useGlobalSpinner } from "../../app/providers/GlobalSpinnerProvider";
+import { Spin } from "antd"
 
 const ProtectedRoute = () => {
     const { data, isLoading } = useCheckMeQuery();

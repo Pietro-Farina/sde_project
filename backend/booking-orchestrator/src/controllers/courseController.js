@@ -25,7 +25,7 @@ const getCourseById = asyncHandler(async (req, res) => {
 	try {
 		const { course } = await dataServiceClient.getCourseById(id);
 
-		res.json({ data: course });
+		res.status(200).json({ data: { course } });
 	} catch (error) {
 		res.status(500).json({ error: error.message });
 	}
