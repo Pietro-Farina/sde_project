@@ -1,8 +1,159 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Oauth Adapter API",
+    "title": "OAuth Adapter API",
+    "description": "OAuth authentication adapter service for Google OAuth 2.0 integration",
     "version": "1.0.0"
   },
-  "paths": {}
+  "paths": {
+    "/api/v1/google/login": {
+      "get": {
+        "operationId": "startGoogleLogin",
+        "tags": ["authentication"],
+        "summary": "Initiate Google OAuth login",
+        "description": "Redirects the user to Google's OAuth consent screen to begin the authentication flow. This endpoint initiates the OAuth 2.0 authorization code flow with Google.",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Redirect to Google OAuth consent screen",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Google OAuth authorization URL"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/google/callback": {
+      "get": {
+        "operationId": "googleCallback",
+        "tags": ["authentication"],
+        "summary": "Handle Google OAuth callback",
+        "description": "Processes the OAuth callback from Google after user consent. Exchanges the authorization code for user information, creates a signed assertion, sends it to the orchestrator service, and redirects the browser to complete authentication.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "description": "Authorization code from Google OAuth",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "description": "State parameter for CSRF protection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to orchestrator complete endpoint after successful authentication",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Orchestrator complete URL with nonce parameter",
+                "example": "http://orchestrator:3000/api/v1/auth/complete?nonce=550e8400-e29b-41d4-a716-446655440000"
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "InternalServerError": {
+        "description": "The server encountered an unexpected condition",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "loginAssertionFailed": {
+                "summary": "Failed to notify orchestrator",
+                "value": {
+                  "error": {
+                    "code": "CREDENTIAL_ASSERTION_FAILED",
+                    "message": "Failed to notify authentication manager"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "InternalAssertion": {
+        "type": "object",
+        "description": "Internal assertion sent to orchestrator (not exposed via API)",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "OAuth provider name",
+            "example": "google"
+          },
+          "sub": {
+            "type": "string",
+            "description": "Subject identifier from OAuth provider"
+          },
+          "iat": {
+            "type": "integer",
+            "description": "Issued at timestamp (Unix epoch)"
+          },
+          "nonce": {
+            "type": "string",
+            "description": "Unique nonce for this authentication session",
+            "format": "uuid"
+          },
+          "signature": {
+            "type": "string",
+            "description": "HMAC-SHA256 signature of the assertion"
+          },
+          "picture": {
+            "type": "string",
+            "description": "User's profile picture URL from OAuth provider"
+          },
+          "frontendRedirectUrl": {
+            "type": "string",
+            "description": "URL where orchestrator should redirect after completing authentication"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "authentication",
+      "description": "OAuth 2.0 authentication operations"
+    }
+  ]
 }

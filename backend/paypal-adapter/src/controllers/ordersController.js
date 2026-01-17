@@ -16,22 +16,27 @@ const createOrder = asyncHandler(async (req, res) => {
     const { reservationId, priceToPay } = req.body;
 
     if (!reservationId || !priceToPay) {
-        return res.status(400).json({ message: "Missing required data" });
+        return res.status(400).json({
+            error: {
+                code: "MISSING_REQUIRED_DATA",
+                message: "Some required data is missing"
+            }
+        });
     }
 
     const orderRequest = {
-            body: {
-                intent: "CAPTURE",
-                purchaseUnits: [{
-                    customId: reservationId, // pass reservation ID for later reference
-                    amount: {
-                        currencyCode: "EUR",
-                        value: priceToPay.toString() // must be string with 2 decimals
-                    }
-                }]
-            },
-            perfer: "return=minimal"
-        };
+        body: {
+            intent: "CAPTURE",
+            purchaseUnits: [{
+                customId: reservationId, // pass reservation ID for later reference
+                amount: {
+                    currencyCode: "EUR",
+                    value: priceToPay.toString() // must be string with 2 decimals
+                }
+            }]
+        },
+        perfer: "return=minimal"
+    };
 
     try {
         // Start payment process via payment service
@@ -46,7 +51,12 @@ const createOrder = asyncHandler(async (req, res) => {
         })
     } catch (error) {
         console.error("Error creating order:", error);
-        return res.status(500).json({ message: "Internal Server Error" });
+        return res.status(500).json({
+            error: {
+                code: "PAYPAL_ORDER_CREATION_FAILED",
+                message: "There was an error while creating the order"
+            }
+        });
     }
 });
 
@@ -54,7 +64,12 @@ const captureOrder = asyncHandler(async (req, res) => {
     const { orderID } = req.body;
 
     if (!orderID) {
-        return res.status(400).json({ message: "Missing required data" });
+        return res.status(400).json({
+            error: {
+                code: "MISSING_REQUIRED_DATA",
+                message: "Some required data is missing"
+            }
+        });
     }
 
     const collect = {
@@ -80,7 +95,12 @@ const captureOrder = asyncHandler(async (req, res) => {
         });
     } catch (error) {
         console.error("Error capturing order:", error);
-        return res.status(500).json({ message: "Internal Server Error" });
+        return res.status(500).json({
+            error: {
+                code: "PAYPAL_ORDER_CAPTURE_FAILED",
+                message: "There was an error while capturing the order"
+            }
+        });
     }
 });
 
@@ -88,7 +108,12 @@ const refundOrder = asyncHandler(async (req, res) => {
     const { captureId, reservationId } = req.body;
 
     if (!captureId || !reservationId) {
-        return res.status(400).json({ message: "Missing required data" });
+        return res.status(400).json({
+            error: {
+                code: "MISSING_REQUIRED_DATA",
+                message: "Some required data is missing"
+            }
+        });
     }
 
     const refundRequest = {
@@ -112,7 +137,12 @@ const refundOrder = asyncHandler(async (req, res) => {
         });
     } catch (error) {
         console.error("Error refunding payment:", error);
-        return res.status(500).json({ message: "Internal Server Error" });
+        return res.status(500).json({
+            error: {
+                code: "PAYPAL_PAYMENT_REFUND_FAILED",
+                message: "There was an error while refunding the payment"
+            }
+        });
     }
 });
 

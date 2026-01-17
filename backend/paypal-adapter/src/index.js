@@ -27,7 +27,7 @@ app.get('/health', (req, res) => {
 });
 
 // Routes
-app.use('/api/paypal', routes);
+app.use('/api/v1', routes);
 
 app.get("/openapi.json", (req, res) => {
   const specPath = path.join(__dirname, "openapi.json");

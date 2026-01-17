@@ -6,7 +6,7 @@ class PaypalAdapterClient {
     async createOrder(orderData) {
         try {
             const response = await axios.post(
-                `${PAYPAL_ADAPTER_SERVICE_URL}/api/paypal/orders/create`,
+                `${PAYPAL_ADAPTER_SERVICE_URL}/api/v1/orders/create`,
                 orderData
             );
             return response.data.data;
@@ -18,7 +18,7 @@ class PaypalAdapterClient {
     async captureOrder(captureData) {
         try {
             const response = await axios.post(
-                `${PAYPAL_ADAPTER_SERVICE_URL}/api/paypal/orders/capture`,
+                `${PAYPAL_ADAPTER_SERVICE_URL}/api/v1/orders/capture`,
                 captureData
             );
             return response.data.data;
@@ -30,7 +30,7 @@ class PaypalAdapterClient {
     async refundOrder(refundData) {
         try {
             const response = await axios.post(
-                `${PAYPAL_ADAPTER_SERVICE_URL}/api/paypal/orders/refund`,
+                `${PAYPAL_ADAPTER_SERVICE_URL}/api/v1/orders/refund`,
                 refundData
             );
             return response.data.data;

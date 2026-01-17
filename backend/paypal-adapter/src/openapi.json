@@ -2,7 +2,346 @@
   "openapi": "3.1.0",
   "info": {
     "title": "PayPal Adapter API",
+    "description": "Adapter service for PayPal payment operations including order creation, capture, and refunds",
     "version": "1.0.0"
   },
-  "paths": {}
+  "paths": {
+    "/api/v1/orders/create": {
+      "post": {
+        "operationId": "createOrder",
+        "tags": ["orders"],
+        "summary": "Create a PayPal order",
+        "description": "Creates a PayPal order for a reservation with the specified price. Returns an order ID that can be used to complete the payment.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reservationId": {
+                    "type": "string",
+                    "description": "The reservation ID to associate with this payment"
+                  },
+                  "priceToPay": {
+                    "type": "string",
+                    "description": "The amount to charge in EUR (must be a string with 2 decimals)"
+                  }
+                },
+                "required": ["reservationId", "priceToPay"]
+              },
+              "examples": {
+                "createOrderRequest": {
+                  "summary": "Example order creation request",
+                  "value": {
+                    "reservationId": "6969808214d2f13caa1e5f16",
+                    "priceToPay": "49.00"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "orderID": {
+                          "type": "string",
+                          "description": "The PayPal order ID"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "createOrderResponse": {
+                    "summary": "Example order creation response",
+                    "value": {
+                      "data": {
+                        "orderID": "8VX12345AB6789012"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/orders/capture": {
+      "post": {
+        "operationId": "captureOrder",
+        "tags": ["orders"],
+        "summary": "Capture a PayPal order",
+        "description": "Captures payment for a previously created PayPal order. This completes the payment transaction and returns the capture ID and payment details.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "orderID": {
+                    "type": "string",
+                    "description": "The PayPal order ID to capture"
+                  }
+                },
+                "required": ["orderID"]
+              },
+              "examples": {
+                "captureOrderRequest": {
+                  "summary": "Example order capture request",
+                  "value": {
+                    "orderID": "8VX12345AB6789012"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order captured successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "description": "The capture status (e.g., COMPLETED)"
+                        },
+                        "captureId": {
+                          "type": "string",
+                          "description": "The PayPal capture ID"
+                        },
+                        "pricePaid": {
+                          "type": "string",
+                          "description": "The amount that was captured"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "captureOrderResponse": {
+                    "summary": "Example order capture response",
+                    "value": {
+                      "data": {
+                        "status": "COMPLETED",
+                        "captureId": "6KT41896LL345210G",
+                        "pricePaid": "49.00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/orders/refund": {
+      "post": {
+        "operationId": "refundOrder",
+        "tags": ["orders"],
+        "summary": "Refund a captured payment",
+        "description": "Refunds a previously captured PayPal payment. Returns the refund ID and status.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "captureId": {
+                    "type": "string",
+                    "description": "The PayPal capture ID to refund"
+                  },
+                  "reservationId": {
+                    "type": "string",
+                    "description": "The reservation ID associated with this refund"
+                  }
+                },
+                "required": ["captureId", "reservationId"]
+              },
+              "examples": {
+                "refundOrderRequest": {
+                  "summary": "Example refund request",
+                  "value": {
+                    "captureId": "6KT41896LL345210G",
+                    "reservationId": "6969808214d2f13caa1e5f16"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Refund processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "refundId": {
+                          "type": "string",
+                          "description": "The PayPal refund ID"
+                        },
+                        "status": {
+                          "type": "string",
+                          "description": "The refund status (e.g., COMPLETED)"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "refundOrderResponse": {
+                    "summary": "Example refund response",
+                    "value": {
+                      "data": {
+                        "refundId": "3L428953E3355840R",
+                        "status": "COMPLETED"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "BadRequest": {
+        "description": "The server could not understand the request due to invalid syntax",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "badRequestResponse": {
+                "summary": "Example bad request response",
+                "value": {
+                  "error": {
+                    "code": "MISSING_REQUIRED_DATA",
+                    "message": "Some required data is missing"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "The server encountered an unexpected condition",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "orderCreationError": {
+                "summary": "Order creation error",
+                "value": {
+                  "error": {
+                    "code": "PAYPAL_ORDER_CREATION_FAILED",
+                    "message": "There was an error while creating the order"
+                  }
+                }
+              },
+              "orderCaptureError": {
+                "summary": "Order capture error",
+                "value": {
+                  "error": {
+                    "code": "PAYPAL_ORDER_CAPTURE_FAILED",
+                    "message": "There was an error while capturing the order"
+                  }
+                }
+              },
+              "paymentRefundError": {
+                "summary": "Payment refund error",
+                "value": {
+                  "error": {
+                    "code": "PAYPAL_PAYMENT_REFUND_FAILED",
+                    "message": "There was an error while refunding the payment"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "orders",
+      "description": "PayPal order and payment operations"
+    }
+  ]
 }

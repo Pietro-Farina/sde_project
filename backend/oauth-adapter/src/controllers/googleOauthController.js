@@ -42,7 +42,12 @@ const googleCallback = [
             });
         } catch (error) {
             console.error("Error notifying orchestrator:", error);
-            return res.sendStatus(500);
+            return res.status(500).json({
+                error: {
+                    code: "CREDENTIAL_ASSERTION_FAILED",
+                    message: "Failed to notify authentication manager",
+                }
+            });
         }
 
         // After notifying orchestrator, redirect the *browser* to orchestrator finalize endpoint
