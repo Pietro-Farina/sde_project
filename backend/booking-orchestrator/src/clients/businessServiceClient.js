@@ -16,11 +16,11 @@ class BusinessServiceClient {
 		}
 	}
 
-	async cancelPendingReservation(id, reservationData) {
+	async cancelPendingReservation(id, userId) {
 		try {
 			const response = await axios.patch(
 				`${BUSINESS_SERVICE_URL}/api/v1/reservations/${id}/cancel`,
-				reservationData
+				{ userId }
 			);
 			return response.data.data;
 		} catch (error) {

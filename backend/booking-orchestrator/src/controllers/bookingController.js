@@ -1,6 +1,5 @@
 const businessServiceClient = require("../clients/businessServiceClient");
 const asyncHandler = require("express-async-handler");
-const dataServiceClient = require("../clients/dataServiceClient");
 const paypalAdapterClient = require("../clients/paypalAdapterClient");
 
 const test = asyncHandler(async (req, res) => {
@@ -9,9 +8,10 @@ const test = asyncHandler(async (req, res) => {
 
 const startBookingProcess = asyncHandler(async (req, res) => {
     // Logic to start the booking process
-    const { userId, courseId, slotIds } = req.body;
+    const { courseId, slotIds } = req.body;
 
-    // Validate user eligibility via Oauth service
+    // Get user ID from auth middleware
+    const userId = req.user.id;
 
     // Create a pending reservation in booking-data service
     const result = await businessServiceClient.createPendingReservation({
@@ -43,7 +43,8 @@ const startBookingProcess = asyncHandler(async (req, res) => {
 const confirmBooking = asyncHandler(async (req, res) => {
     const { orderID, reservationId } = req.body;
 
-    const userId = "648a1f4e2f8fb814c8d6f9b1"; // TODO: get from auth
+    // Get user ID from auth middleware
+    const userId = req.user.id;
 
     if (!orderID || !reservationId) {
         return res.status(400).json({ message: "Missing required data" });
@@ -87,7 +88,10 @@ const confirmBooking = asyncHandler(async (req, res) => {
 });
 
 const getPendingReservation = asyncHandler(async (req, res) => {
-    const { userId, courseId } = req.body;
+    const { courseId } = req.body;
+
+    // Get user ID from auth middleware
+    const userId = req.user.id;
 
     const result = await businessServiceClient.getPendingReservation({
         userId,
@@ -102,7 +106,10 @@ const getPendingReservation = asyncHandler(async (req, res) => {
 const cancelReservation = asyncHandler(async (req, res) => {
     const { reservationId } = req.params;
 
-    const result = await dataServiceClient.cancelReservationById(reservationId);
+    // Get user ID from auth middleware
+    const userId = req.user.id;
+
+    const result = await businessServiceClient.cancelPendingReservation(reservationId, userId);
 
     res.status(200).json({
         data: result,
@@ -110,7 +117,8 @@ const cancelReservation = asyncHandler(async (req, res) => {
 });
 
 const getUserBookings = asyncHandler(async (req, res) => {
-    const userId = "648a1f4e2f8fb814c8d6f9b1"; // TODO: get from auth
+    // Get user ID from auth middleware
+    const userId = req.user.id;
 
     const result = await businessServiceClient.getUserBookings(userId);
 
