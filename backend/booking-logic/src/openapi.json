@@ -2,7 +2,709 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Booking Logic API",
+    "description": "Business logic service for managing bookings and reservations",
     "version": "1.0.0"
   },
-  "paths": {}
+  "paths": {
+    "/api/v1/bookings": {
+      "get": {
+        "operationId": "getBookings",
+        "tags": [
+          "bookings"
+        ],
+        "summary": "Retrieve bookings with optional user filter",
+        "description": "Returns a list of bookings, optionally filtered by `userId`. When no `userId` is provided, all bookings are returned.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userId",
+            "required": false,
+            "description": "ID of the user to filter bookings",
+            "schema": {
+              "type": "string"
+            },
+            "example": "648a1f4e2f8fb814c8d6f9b1"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request was successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookings": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Booking"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "getBookingsResponse": {
+                    "summary": "Example bookings retrieval",
+                    "value": {
+                      "data": {
+                        "bookings": [
+                          {
+                            "_id": "69642e1f21d2db02c99b9aec",
+                            "course": "695ba111b2e63b75bee66279",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "reservation": "69642e1921d2db02c99b9ae8",
+                            "slots": [
+                              "695ba111b2e63b75bee6627b"
+                            ],
+                            "status": "confirmed",
+                            "transactionId": "6KT41896LL345210G",
+                            "price": "49.00",
+                            "createdAt": "2026-01-11T23:11:27.530Z",
+                            "updatedAt": "2026-01-11T23:11:27.530Z",
+                            "__v": 0
+                          },
+                          {
+                            "_id": "6969609fe8d3650f299ea570",
+                            "course": "695ba111b2e63b75bee66279",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "reservation": "69696094e8d3650f299ea56c",
+                            "slots": [
+                              "695ba111b2e63b75bee6627b",
+                              "695ba111b2e63b75bee6627a"
+                            ],
+                            "status": "confirmed",
+                            "transactionId": "6MC33684BA3458225",
+                            "price": "89.00",
+                            "createdAt": "2026-01-15T21:48:15.941Z",
+                            "updatedAt": "2026-01-15T21:48:15.941Z",
+                            "__v": 0
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "emptyBookingsResponse": {
+                    "summary": "Example empty bookings response",
+                    "value": {
+                      "data": {
+                        "bookings": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createBooking",
+        "tags": [
+          "bookings"
+        ],
+        "summary": "Create a new booking",
+        "description": "TODO: Creates a booking from an existing held reservation. Validates the reservation belongs to the user, is in held status, and hasn't expired before creating the booking.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string"
+                  },
+                  "reservationId": {
+                    "type": "string"
+                  },
+                  "transactionId": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "userId",
+                  "reservationId",
+                  "transactionId",
+                  "price"
+                ]
+              },
+              "examples": {
+                "createBookingRequest": {
+                  "summary": "Example booking creation request",
+                  "value": {
+                    "userId": "TEST_USER_12345",
+                    "reservationId": "696b690186faaabbfded290e",
+                    "transactionId": "52V73452E9342521J",
+                    "price": "79.00"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Booking"
+                    }
+                  }
+                },
+                "examples": {
+                  "createBookingResponse": {
+                    "summary": "Example booking creation response",
+                    "value": {
+                      "data": {
+                        "course": "695ba111b2e63b75bee66284",
+                        "user": "TEST_USER_12345",
+                        "reservation": "696b690186faaabbfded290e",
+                        "slots": [
+                          "695ba111b2e63b75bee66286"
+                        ],
+                        "status": "confirmed",
+                        "transactionId": "52V73452E9342521J",
+                        "price": "79.00",
+                        "_id": "696b695386faaabbfded2912",
+                        "createdAt": "2026-01-17T10:49:55.591Z",
+                        "updatedAt": "2026-01-17T10:49:55.591Z",
+                        "__v": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/reservations": {
+      "post": {
+        "operationId": "createReservation",
+        "tags": [
+          "reservations"
+        ],
+        "summary": "Create a new reservation",
+        "description": "TODO: Creates a new reservation by validating course and slot availability. Checks pricing options for the selected number of slots and returns the reservation ID and price to pay.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string"
+                  },
+                  "courseId": {
+                    "type": "string"
+                  },
+                  "slotIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "userId",
+                  "courseId",
+                  "slotIds"
+                ]
+              },
+              "examples": {
+                "createReservationRequest": {
+                  "summary": "Example reservation creation request",
+                  "value": {
+                    "userId": "TEST_USER_12345",
+                    "courseId": "695ba111b2e63b75bee66284",
+                    "slotIds": [
+                      "695ba111b2e63b75bee66286"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reservation created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservationId": {
+                          "type": "string"
+                        },
+                        "priceToPay": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "createReservationResponse": {
+                    "summary": "Example reservation creation response",
+                    "value": {
+                      "data": {
+                        "reservationId": "6969808214d2f13caa1e5f16",
+                        "priceToPay": "49.00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/reservations/active": {
+      "get": {
+        "operationId": "getActiveCourseReservationForUser",
+        "tags": [
+          "reservations"
+        ],
+        "summary": "Get active reservation for a user and course",
+        "description": "Returns the most recent active (held and not expired) reservation for a specific user and course combination.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userId",
+            "required": true,
+            "description": "ID of the user",
+            "schema": {
+              "type": "string"
+            },
+            "example": "TEST_USER_12345"
+          },
+          {
+            "in": "query",
+            "name": "courseId",
+            "required": true,
+            "description": "ID of the course",
+            "schema": {
+              "type": "string"
+            },
+            "example": "695ba111b2e63b75bee66284"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active reservation found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Reservation"
+                    }
+                  }
+                },
+                "examples": {
+                  "getActiveReservationResponse": {
+                    "summary": "Example active reservation retrieval",
+                    "value": {
+                      "data": {
+                        "_id": "696b69fd86faaabbfded291e",
+                        "course": "695ba111b2e63b75bee66284",
+                        "user": "TEST_USER_12345",
+                        "slots": [
+                          "695ba111b2e63b75bee66286"
+                        ],
+                        "status": "held",
+                        "expiration": "2026-01-17T11:07:45.157Z",
+                        "createdAt": "2026-01-17T10:52:45.158Z",
+                        "updatedAt": "2026-01-17T10:52:45.158Z",
+                        "__v": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/v1/reservations/{id}/cancel": {
+      "patch": {
+        "operationId": "cancelReservation",
+        "tags": [
+          "reservations"
+        ],
+        "summary": "Cancel a reservation",
+        "description": "TODO: Cancels an existing held reservation. Validates that the reservation belongs to the user before canceling.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "The unique identifier of the reservation to cancel",
+            "schema": {
+              "type": "string"
+            },
+            "example": "696b69fd86faaabbfded291e"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "userId"
+                ],
+                "examples": {
+                  "cancelReservationRequest": {
+                    "summary": "Example cancellation request",
+                    "value": {
+                      "userId": "TEST_USER_12345"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/NoContent"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "BadRequest": {
+        "description": "The server could not understand the request due to invalid syntax",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "badRequestErrorResponse": {
+                "summary": "Example bad request error response",
+                "value": {
+                  "error": {
+                    "code": "INVALID_BOOKING_DATA",
+                    "message": "Missing required booking data."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The client does not have access rights to the content",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "forbiddenErrorResponse": {
+                "summary": "Example forbidden error response",
+                "value": {
+                  "error": {
+                    "code": "ACCESS_DENIED",
+                    "message": "User do not have permission to access this reservation."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "The server cannot find the requested resource",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "notFoundErrorResponse": {
+                "summary": "Example not found error response",
+                "value": {
+                  "error": {
+                    "code": "RESERVATION_NOT_FOUND",
+                    "message": "No active reservation found for the specified user and course."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "The request could not be completed due to a conflict",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "conflictErrorResponse": {
+                "summary": "Example conflict error response",
+                "value": {
+                  "error": {
+                    "code": "RESERVATION_NOT_ACTIVE",
+                    "message": "Reservation is not active"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "The server encountered an unexpected condition",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              }
+            },
+            "examples": {
+              "internalServerErrorResponse": {
+                "summary": "Example server error response",
+                "value": {
+                  "error": {
+                    "code": "INTERNAL_SERVER_ERROR",
+                    "message": "An unexpected error occurred while processing the request."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "NoContent": {
+        "description": "The request was successful, but there is no content to return"
+      }
+    },
+    "schemas": {
+      "Booking": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "course": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          },
+          "reservation": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "cancelled"
+            ]
+          },
+          "transactionId": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      },
+      "Reservation": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "course": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "held",
+              "completed",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "expiration": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "bookings",
+      "description": "Booking management operations"
+    },
+    {
+      "name": "reservations",
+      "description": "Reservation management operations"
+    }
+  ]
 }

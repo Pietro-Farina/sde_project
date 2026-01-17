@@ -111,6 +111,17 @@
                   "required": [
                     "error"
                   ]
+                },
+                "examples": {
+                  "internalServerError": {
+                    "summary": "Example internal server error response",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "An unexpected error occurred while processing the request."
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -1028,6 +1039,17 @@
               "required": [
                 "message"
               ]
+            },
+            "examples": {
+              "Conflict": {
+                "summary": "Example conflict response",
+                "value": {
+                  "error": {
+                    "code": "INSUFFICIENT_SLOT_AVAILABILITY",
+                    "message": "Not enough space in one or more slots."
+                  }
+                }
+              }
             }
           }
         }

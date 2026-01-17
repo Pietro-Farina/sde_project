@@ -9,7 +9,7 @@ class DataServiceClient {
     async getAllBookings() {
         try {
             const response = await axios.get(`${DATA_SERVICE_URL}/api/v1/bookings`);
-            return response.data;
+            return response.data.data;
         } catch (error) {
             throw normalizeAxiosError(error, "DATA_SERVICE");
         }
@@ -60,7 +60,12 @@ class DataServiceClient {
     async safeCancelReservationById(reservationId) {
         try {
             const response = await axios.patch(`${DATA_SERVICE_URL}/api/v1/reservations/${reservationId}/cancel`);
-            return response.data.data;
+
+            if (response.status === 204) {
+                return null; // explicit success with no content
+            }
+
+            return response.data;
         } catch (error) {
             throw normalizeAxiosError(error, "DATA_SERVICE");
         }

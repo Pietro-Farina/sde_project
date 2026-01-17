@@ -1,19 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const bookingController = require('../controllers/bookingController');
+const { withHttpErrorHandling } = require("../utils/withHttpErrorHandling.js");
 
-router.post('/bookings', bookingController.createBooking);
-router.get('/bookings/user/:userId', bookingController.getUserBookings);
-// router.post('/bookings', bookingController.create);
-// router.get('/bookings/:id', bookingController.getById);
-// router.get('/bookings', bookingController.getAll);
-// router.put('/bookings/:id', bookingController.update);
-// router.delete('/bookings/:id', bookingController.delete);
+router.get('/bookings', withHttpErrorHandling(bookingController.getBookings));
+router.post('/bookings', withHttpErrorHandling(bookingController.createBooking));
 
-router.post('/reservations', bookingController.createReservation);
-router.post('/reservations/active', bookingController.getActiveCourseReservationForUser);
-router.post('/reservations/cancel', bookingController.cancelReservation);
-
-
+router.post('/reservations', withHttpErrorHandling(bookingController.createReservation));
+router.get('/reservations/active', withHttpErrorHandling(bookingController.getActiveCourseReservationForUser));
+router.patch('/reservations/:id/cancel', withHttpErrorHandling(bookingController.cancelReservation));
 
 module.exports = router;

@@ -2,32 +2,47 @@ const dataServiceClient = require('../clients/dataServiceClient');
 const asyncHandler = require('express-async-handler')
 const bookingSettings = require('../config/bookingSettings');
 
+// Reservations
 const createReservation = asyncHandler(async (req, res) => {
+    console.log("Create reservation request body:", req.body);
     // Logic to create a reservation
     const { userId, courseId, slotIds } = req.body;
 
     // Can the user book the course? Do we have all data?
     if (!userId || !courseId || !slotIds || !Array.isArray(slotIds) || slotIds.length === 0) {
-        return res.status(400).json({ error: "Invalid reservation data" });
+        return res.status(400).json({
+            error: {
+                code: "INVALID_RESERVATION_DATA",
+                message: "The provided reservation data is invalid."
+            }
+        });
     }
-  
+
     // Check the course and slot availability from data service
     const { course } = await dataServiceClient.getCourseById(courseId);
-    if (!course) {
-        return res.status(400).json({ error: "Invalid reservation data" });
-    }
+
     const unavailableSlots = slotIds.filter(slotId => {
         const slot = course.slots.find(s => s._id.toString() === slotId);
         return !slot || slot.available <= 0;
     });
     if (unavailableSlots.length > 0) {
-        return res.status(409).json({ error: "One or more selected slots are not available" });
+        return res.status(409).json({
+            error: {
+                code: "SLOTS_NOT_AVAILABLE",
+                message: "One or more selected slots are not available."
+            }
+        });
     }
 
     // check pricing options
     const priceOption = course.priceOptions.find(option => option.numberSlots === slotIds.length);
     if (!priceOption) {
-        return res.status(400).json({ error: "No pricing option for the selected number of slots" });
+        return res.status(400).json({
+            error: {
+                code: "NO_PRICING_OPTION",
+                message: "No pricing option for the selected number of slots"
+            }
+        });
     }
 
     // if everything is valid, create the reservation in booking-data service
@@ -39,10 +54,7 @@ const createReservation = asyncHandler(async (req, res) => {
     };
     const { reservation } = await dataServiceClient.createReservationIfAvailable(reservationData);
 
-    if (!reservation) {
-        return res.status(500).json({ error: "Failed to create reservation" });
-    }
-
+    // TODO DECIDE WHAT TO RETURN HERE
     return res.status(201).json({
         data: {
             reservationId: reservation._id,
@@ -52,16 +64,22 @@ const createReservation = asyncHandler(async (req, res) => {
 });
 
 const getActiveCourseReservationForUser = asyncHandler(async (req, res) => {
-    const { courseId, userId } = req.body;
-    console.log(req.body);
+    console.log("Get active course reservation request query:", req.query);
+    const { courseId, userId } = req.query;
+    console.log(req.query);
 
     if (!userId || !courseId) {
         console.log("Missing userId or courseId", userId, courseId);
-        return res.status(400).json({ error: "Missing user ID or course ID" });
+        return res.status(400).json({
+            error: {
+                code: "MISSING_QUERY_PARAMS",
+                message: "Both userId and courseId query parameters are required."
+            }
+        });
     }
 
     // Fetch all reservations from booking-data service
-    const { reservations } = await dataServiceClient.getCourseReservationsByUserId({  userId, courseId });
+    const { reservations } = await dataServiceClient.getCourseReservationsByUserId({ userId, courseId });
 
     // Filter active reservations
     const now = new Date();
@@ -75,76 +93,106 @@ const getActiveCourseReservationForUser = asyncHandler(async (req, res) => {
         return true;
     });
     if (activeReservations.length === 0) {
-        return res.status(404).json({ error: "No active reservations found" });
+        return res.status(404).json({
+            error: {
+                code: "NO_ACTIVE_RESERVATION",
+                message: "No active reservation found for the specified user and course."
+            }
+        });
     }
     const lastReservation = activeReservations[activeReservations.length - 1];
-    
+
     res.status(200).json({
         data: lastReservation
     });
 });
 
 const cancelReservation = asyncHandler(async (req, res) => {
+    console.log("Cancel reservation request body:", req.body);
     // Logic to cancel a reservation by ID
-    const { id, userId } = req.body;
+    const { userId } = req.body;
+    const { id } = req.params;
 
     if (!id || !userId) {
-        return res.status(400).json({ error: "Missing reservation ID or user ID" });
+        return res.status(400).json({
+            error: {
+                code: "MISSING_DATA",
+                message: "Reservation ID and userId are required to cancel a reservation."
+            }
+        });
     }
 
     // Fetch reservation details from booking-data service
     const { reservation } = await dataServiceClient.getReservationById(id);
 
-    if (!reservation) {
-        return res.status(404).json({ error: "Reservation not found" });
-    }
-
     // IS HELD? then free up slots in the course
     if (reservation.user.toString() !== userId) {
-        return res.status(403).json({ error: "Access denied to this reservation" });
-    }
-
-    if (reservation.status === "held") {
-        // proceed to cancel reservation
-        const result = await dataServiceClient.safeCancelReservationById(id);
-
-        if (!result) {
-            return res.status(500).json({ error: "Failed to cancel reservation" });
-        }
-
-        return res.status(200).json({
-            data: result
+        return res.status(403).json({
+            error: {
+                code: "ACCESS_DENIED",
+                message: "User do not have permission to cancel this reservation."
+            }
         });
     }
 
-    return res.status(409).json({ error: "Reservation not active" });
+    if (reservation.status !== "held") {
+        return res.status(409).json({
+            error: {
+                code: "RESERVATION_NOT_ACTIVE",
+                message: "Reservation cannot be canceled as it is not active"
+            }
+        });
+    }
+
+    // proceed to cancel reservation
+    await dataServiceClient.safeCancelReservationById(id);
+
+    return res.status(204).end();
 })
 
+// Bookings
 const createBooking = asyncHandler(async (req, res) => {
+    console.log("Create booking request body:", req.body);
     const { userId, reservationId, transactionId, price } = req.body;
 
     // I do all the check
     if (!userId || !reservationId || !transactionId || !price) {
-        return res.status(400).json({ error: "Invalid booking data" });
+        return res.status(400).json({
+            error: {
+                code: "INVALID_BOOKING_DATA",
+                message: "Missing required booking data."
+            }
+        });
     }
-    
+
     // I evaluate if the reservations exists, is held, belongs to the user, not expired
     const { reservation } = await dataServiceClient.getReservationById(reservationId);
 
-    if (!reservation) {
-        return res.status(404).json({ error: "Reservation not found" });
-    }
-
     if (reservation.user.toString() !== userId) {
-        return res.status(403).json({ error: "Access denied to this reservation" });
+        return res.status(403).json({
+            error: {
+                code: "ACCESS_DENIED",
+                message: "User do not have permission to access this reservation."
+            }
+        });
     }
 
     if (reservation.status !== "held") {
-        return res.status(409).json({ error: "Reservation is not active" });
+        return res.status(409).json({
+            error: {
+                code: "RESERVATION_NOT_ACTIVE",
+                message: "Reservation is not active"
+            }
+        });
     }
 
     if (new Date(reservation.expiration) < new Date()) {
-        return res.status(409).json({ error: "Reservation has expired" });
+        return res.status(409).json({
+            error: {
+                code: "RESERVATION_EXPIRED",
+                message: "Reservation has expired"
+            }
+        });
     }
 
     // I then issue the creation of the booking and the completion of the reservation in a transaction
@@ -157,26 +205,22 @@ const createBooking = asyncHandler(async (req, res) => {
         price
     });
 
-    if (!newBooking) {
-        return res.status(500).json({ error: "Failed to create booking" });
-    }
-
     return res.status(201).json({
         data: newBooking
     });
 });
 
-const getUserBookings = asyncHandler(async (req, res) => {
-    const { userId } = req.params;
+const getBookings = asyncHandler(async (req, res) => {
+    console.log("Get bookings request query:", req.query);
+    const { userId } = req.query;
 
-    if (!userId) {
-        return res.status(400).json({ error: "Missing user ID" });
-    }
-
-    const { bookings } = await dataServiceClient.getUserBookings(userId);
-
+    const { bookings } = userId ? await dataServiceClient.getUserBookings(userId)
+        : await dataServiceClient.getAllBookings();
+    console.log("Bookings retrieved:", bookings.length);
     return res.status(200).json({
-        data: bookings
+        data: {
+            bookings
+        }
     });
 });
 
@@ -185,5 +229,5 @@ module.exports = {
     getActiveCourseReservationForUser,
     cancelReservation,
     createBooking,
-    getUserBookings
+    getBookings
 };

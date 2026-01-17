@@ -14,6 +14,14 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 
 // app.use(cors(corsOptions));
+// Middleware
+app.use((req, res, next) => {
+    const dateTime = new Date().toISOString();
+    const logItem = `${dateTime}\t${req.method}\t${req.url}\t${req.headers.origin}\n`
+    if (!req.url.includes('/health'))
+        console.log(logItem);
+    next();
+});
 app.use(cors());
 app.use(express.json());
 
@@ -49,7 +57,12 @@ app.use((err, req, res, next) => {
     console.log(logItem);
     console.error(err.stack);
 
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({
+        error: {
+            code: "INTERNAL_SERVER_ERROR",
+            message: "An unexpected error occurred while processing the request."
+        }
+    });
 });
 connectDB();
 
