@@ -12,7 +12,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
         getBookings: builder.query({
             query: () => ({
-                url: '/api/bookings',
+                url: '/api/v1/bookings',
                 method: 'GET',
                 validateStatus: (response, result) => {
                     return response.status === 200 && !result.isError;
@@ -37,7 +37,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
         }),
         startBookingProcess: builder.mutation({
             query: (bookingData) => ({
-                url: '/api/bookings/start',
+                url: '/api/v1/bookings/start',
                 method: 'POST',
                 body: bookingData,
                 validateStatus: (response, result) => {
@@ -55,7 +55,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
         }),
         confirmBooking: builder.mutation({
             query: (confirmationData) => ({
-                url: '/api/bookings/confirm',
+                url: '/api/v1/bookings/confirm',
                 method: 'POST',
                 body: confirmationData,
                 validateStatus: (response, result) => {
@@ -70,7 +70,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
         }),
         getActiveReservation: builder.query({
             query: (reservationData) => ({
-                url: `/api/bookings/reservations/pending`,
+                url: `/api/v1/bookings/reservations/pending`,
                 method: 'POST',
                 body: reservationData,
                 validateStatus: (response, result) => {
@@ -90,7 +90,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
         }),
         cancelActiveReservation: builder.mutation({
             query: (id) => ({
-                url: `/api/bookings/reservations/${id}/cancel`,
+                url: `/api/v1/bookings/reservations/${id}/cancel`,
                 method: 'PATCH',
                 validateStatus: (response, result) => {
                     return response.status === 200 && !result.isError

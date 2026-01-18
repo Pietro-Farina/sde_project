@@ -4,7 +4,7 @@ export const authApiSlice = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
         checkMe: builder.query({
             query: () => ({
-                url: '/api/auth/me',
+                url: '/api/v1/auth/me',
                 method: 'GET',
                 validateStatus: (response, result) => {
                     return response.status === 200 && !result.isError;
@@ -18,7 +18,7 @@ export const authApiSlice = apiSlice.injectEndpoints({
         }),
         logout: builder.mutation({
             query: () => ({
-                url: '/api/auth/logout',
+                url: '/api/v1/auth/logout',
                 method: 'POST',
             }),
             invalidatesTags: [{ type: 'Auth', id: 'ME' }],

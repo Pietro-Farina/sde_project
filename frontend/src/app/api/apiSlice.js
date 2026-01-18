@@ -12,7 +12,7 @@ const baseQueryWithRefresh = async (args, api, extraOptions) => {
 
     if (result.error?.status === 401) {
         const refreshResult = await baseQuery(
-            { url: "/api/auth/refresh", method: "POST" },
+            { url: "/api/v1/auth/refresh", method: "POST" },
             api,
             extraOptions
         );

@@ -16,7 +16,7 @@ const login = asyncHandler(async (req, res) => {
     }
     // Browser starts at orchestrator, orchestrator sends to adapter
     const adapterBase = process.env.OAUTH_ADAPTER_SERVICE_URL;
-    res.redirect(`${adapterBase}/api/oauth/${provider}/login`);
+    res.redirect(`${adapterBase}/api/v1/oauth/${provider}/login`);
 });
 
 // 2) Finalize: browser arrives here after adapter redirects it

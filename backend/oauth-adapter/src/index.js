@@ -49,7 +49,7 @@ app.get('/health', (req, res) => {
 });
 
 // Routes
-app.use('/api/oauth', routes);
+app.use('/api/v1/oauth', routes);
 
 app.get("/openapi.json", (req, res) => {
   const specPath = path.join(__dirname, "openapi.json");
