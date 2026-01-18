@@ -26,17 +26,17 @@ const CoursesGrid = () => {
 		error,
 	} = useGetCoursesQuery("coursesList");
 
-    const { show, hide } = useGlobalSpinner();
+	const { show, hide } = useGlobalSpinner();
 
-    useEffect(() => {
-        if (isLoading) {
-            show();
-        } else {
-            hide();
-        }
-    }, [isLoading]);
+	useEffect(() => {
+		if (isLoading) {
+			show();
+		} else {
+			hide();
+		}
+	}, [isLoading]);
 
-    const navigate = useNavigate();
+	const navigate = useNavigate();
 
 	let tableContent = <p>No data avaiable!</p>;
 	if (isError) {
@@ -75,7 +75,9 @@ const CoursesGrid = () => {
 									lineHeight: "1.5715",
 								}}
 							>
-								{course.description}
+								<Text>
+									{course.description}
+								</Text>
 							</div>
 
 							<Button
@@ -104,7 +106,7 @@ const CoursesGrid = () => {
 			</Space>
 
 			{/* Filters */}
-			<Row gutter={[16, 16]} align="middle" style={{ marginBottom: 24 }}>
+			{/* <Row gutter={[16, 16]} align="middle" style={{ marginBottom: 24 }}>
 				<Col xs={24} md={10}>
 					<Search placeholder="Search courses" allowClear />
 				</Col>
@@ -128,7 +130,7 @@ const CoursesGrid = () => {
 				<Col xs={24} md={4}>
 					<Select placeholder="Sort by" style={{ width: "100%" }} />
 				</Col>
-			</Row>
+			</Row> */}
 
 			{/* Courses grid */}
 			<Row gutter={[16, 16]}>
@@ -136,9 +138,9 @@ const CoursesGrid = () => {
 			</Row>
 
 			{/* Pagination */}
-			<div style={{ marginTop: 32, textAlign: "center" }}>
+			{/* <div style={{ marginTop: 32, textAlign: "center" }}>
 				<Pagination defaultCurrent={1} total={50} />
-			</div>
+			</div> */}
 		</div>
 	);
 };

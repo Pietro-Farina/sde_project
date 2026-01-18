@@ -59,7 +59,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
                 method: 'POST',
                 body: confirmationData,
                 validateStatus: (response, result) => {
-                    return response.status === 200 && !result.isError
+                    return response.status === 201 && !result.isError
                 },
             }),
             invalidatesTags: [{ type: 'Booking', id: 'LIST' }],
@@ -93,7 +93,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
                 url: `/api/v1/bookings/reservations/${id}/cancel`,
                 method: 'PATCH',
                 validateStatus: (response, result) => {
-                    return response.status === 200 && !result.isError
+                    return response.status === 204 && !result.isError
                 },
             }),
             invalidatesTags: [{ type: 'Reservation', id: 'LIST' }],

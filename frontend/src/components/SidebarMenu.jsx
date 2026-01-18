@@ -7,6 +7,7 @@ import {
 	SolutionOutlined,
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router";
+import { useCheckMeQuery } from "../features/auth/authApiSlice";
 
 function resolveSelectedKey(pathname) {
 	if (pathname === "/") return "/courses";
@@ -24,6 +25,7 @@ export function SidebarMenu({
 }) {
 	const location = useLocation();
 	const navigate = useNavigate();
+	const { data } = useCheckMeQuery();
 
 	const menuItems = [
 		{
@@ -36,11 +38,11 @@ export function SidebarMenu({
 			icon: <SolutionOutlined />,
 			label: "My Bookings",
 		},
-		{
+		...(!data?.authenticated ? [{
 			key: "/login",
 			icon: <LoginOutlined />,
 			label: "Login",
-		},
+		}] : []),
 	];
 
 	return (

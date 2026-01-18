@@ -27,7 +27,7 @@ export function StepSelect({ selectedSlotsIds, setSelectedSlotsIds, course }) {
 									dataSource={course.priceOptions.map((option, idx) => ({
 										key: idx,
 										numberSlots: option.numberSlots,
-										price: `$${option.price}`,
+										price: `€ ${option.price}`,
 									}))}
 									columns={[
 										{

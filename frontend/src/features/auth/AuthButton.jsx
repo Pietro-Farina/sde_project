@@ -1,13 +1,13 @@
-import { Button } from "antd";
-import { useCheckMeQuery, useLogoutMutation, useTestMutation } from "./authApiSlice";
+import { Avatar, Button } from "antd";
+import { UserOutlined } from "@ant-design/icons";
+import { useCheckMeQuery, useLogoutMutation } from "./authApiSlice";
 import { useNavigate } from "react-router";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useGlobalSpinner } from "../../app/providers/GlobalSpinnerProvider";
 
 const AuthButton = () => {
     const [logout, { isLoading }] = useLogoutMutation();
     const { data, isLoading: isMeLoading } = useCheckMeQuery();
-    const [test] = useTestMutation();
 
     const navigate = useNavigate();
     const { show, hide } = useGlobalSpinner();
@@ -19,16 +19,33 @@ const AuthButton = () => {
             hide();
         }
     }, [isLoading, isMeLoading]);
+    console.log("AuthButton render, data:", data);
+
+    const avatarComponent = useMemo(() => {
+        if (!data?.authenticated || !data?.picture) return null;
+        return (
+            <Avatar 
+                src={data.picture}
+                icon={<UserOutlined />}
+                alt="User profile"
+                style={{ marginRight: 8 }}
+            />
+        );
+    }, [data?.picture, data?.authenticated]);
 
     return (
         <>
             {data?.authenticated ? (
-                <Button onClick={async () => {
-                    await logout();
-                    navigate("/");
-                }}>
-                    Logout
-                </Button>
+                <>
+                    {avatarComponent || <Avatar icon={<UserOutlined />} style={{ marginRight: 8 }} />}
+                    <Button onClick={async () => {
+                        await logout();
+                        // we should invalidate all cached data here and redirect to home
+                        navigate("/");
+                    }}>
+                        Logout
+                    </Button>
+                </>
             )
                 :
                 (
@@ -39,15 +56,6 @@ const AuthButton = () => {
                     </Button>
                 )
             }
-            <Button onClick={async () => {
-                fetch("http://localhost:3000/__test/check-cookie", {
-                    credentials: "include",
-                })
-                    .then(r => r.json())
-                    .then(console.log);
-            }}>
-                Test Cookie
-            </Button>
         </>
     );
 }

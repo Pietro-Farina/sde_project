@@ -36,37 +36,81 @@ export function SelectionGuide({
 			}}
 		>
 			{step === 0 && (
-				<Space wrap style={{ minHeight: 32 }}>
-					<Text strong>Selected slots:</Text>
-					{selectedSlots.length === 0 && (
-						<Text type="secondary">None</Text>
-					)}
-					{selectedSlots.map((slot) => (
-						<Tag
-							key={slot._id}
-							closable={step === 0}
-							onClose={() => removeSlot(slot._id)}
-						>
-							<Text strong>{getDayKey(slot.start)}</Text>
-							{": "}
-							{new Date(slot.start).toLocaleTimeString([], {
-								hour: "2-digit",
-								minute: "2-digit",
-							})}
-							{" – "}
-							{new Date(slot.end).toLocaleTimeString([], {
-								hour: "2-digit",
-								minute: "2-digit",
-							})}
-						</Tag>
-					))}
-				</Space>
+				<>
+					<Space wrap style={{ minHeight: 32 }}>
+						<Text strong>Selected slots:</Text>
+						{selectedSlots.length === 0 && (
+							<Text type="secondary">None</Text>
+						)}
+						{selectedSlots.map((slot) => (
+							<Tag
+								key={slot._id}
+								closable={step === 0}
+								onClose={() => removeSlot(slot._id)}
+							>
+								<Text strong>{getDayKey(slot.start)}</Text>
+								{": "}
+								{new Date(slot.start).toLocaleTimeString([], {
+									hour: "2-digit",
+									minute: "2-digit",
+								})}
+								{" – "}
+								{new Date(slot.end).toLocaleTimeString([], {
+									hour: "2-digit",
+									minute: "2-digit",
+								})}
+							</Tag>
+						))}
+					</Space>
+					{optionSelected !== null ? (
+						<div style={{ marginTop: 8 }}>
+							<Text strong>Total Price: </Text>
+							<Text>€ {optionSelected.price}</Text>
+						</div>)
+						: (<div style={{ marginTop: 8 }}>
+							<Text type="danger">
+								Please select a valid number of slots to see the total price.
+							</Text>
+						</div>
+						)
+					}
+				</>
 			)}
 
 			{step === 1 && (
 				<div>
 					<Text>Proceed with payment by clicking continue below.</Text>
 					<Divider style={{ margin: "12px 0" }} />
+					<Row gutter={32} justify="center">
+						<Col>
+							<Statistic
+								title="Slots Selected"
+								value={selectedSlots.length}
+								suffix="slots"
+								styles={{ content: { color: "#1890ff", fontWeight: "bold" } }}
+							/>
+						</Col>
+						<Col>
+							{optionSelected !== null ? (
+								<Statistic
+									title="Total Price"
+									value={optionSelected.price}
+									prefix="€"
+									styles={{ content: { color: "#52c41a", fontWeight: "bold", fontSize: "24px" } }}
+								/>
+							) : (
+								<Statistic
+									title="Total Price"
+									value="Unavailable"
+									styles={{ content: { color: "#ff4d4f" } }}
+								/>
+							)}
+						</Col>
+					</Row>
+				</div>
+			)}
+			{step === 2 && (
+				<div>
 					<Row gutter={32} justify="center">
 						<Col>
 							<Statistic
@@ -111,7 +155,8 @@ export function SelectionGuide({
 				</div>
 
 				<Tooltip title={!optionSelected ? "Please select a valid number of slots" : ""} placement="top">
-					<Button type="primary" disabled={!canContinue} onClick={step === 2 ? onStartBooking : onNext}>
+					<Button type="primary" disabled={!canContinue} onClick={step === 2 ? onStartBooking : onNext}
+						hidden={step === 2}>
 						{step === 2 ? "Pay" : "Continue"}
 					</Button>
 				</Tooltip>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Table, Button, Space, Card, Row, Col, Typography, Tag } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useAppResponsive } from "../../app/providers/ResponsiveProvider";
@@ -7,11 +7,12 @@ import "./BookingList.css";
 import { useGlobalSpinner } from "../../app/providers/GlobalSpinnerProvider";
 import { useNavigate } from "react-router";
 import { useGetBookingsQuery } from "./bookingApiSlice";
-import { useEffect } from "react";
+import { useGetCoursesQuery } from "../courses/coursesApiSlice";
+import { useEffect, useMemo } from "react";
 
 const { Text } = Typography;
 const BookingList = () => {
-	const { isMobile } = useAppResponsive();
+	const { isMobile, isTablet } = useAppResponsive();
 	// const bookings = useBookings();
 
 	const {
@@ -22,17 +23,71 @@ const BookingList = () => {
 		error,
 	} = useGetBookingsQuery();
 
+	const {
+		data: normalizedCourses,
+		isLoading: isLoadingCourses,
+	} = useGetCoursesQuery();
+
 	const { show, hide } = useGlobalSpinner();
 
 	useEffect(() => {
-		if (isLoading) {
+		if (isLoading || isLoadingCourses) {
 			show();
 		} else {
 			hide();
 		}
-	}, [isLoading]);
+	}, [isLoading, isLoadingCourses]);
 
 	const navigate = useNavigate();
+	const [expandedRowKeys, setExpandedRowKeys] = useState([]);
+
+	// Create a lookup map for course IDs to course names
+	const coursesMap = useMemo(() => {
+		if (!normalizedCourses?.ids) return {};
+		const map = {};
+		normalizedCourses.ids.forEach(id => {
+			map[id] = normalizedCourses.entities[id];
+		});
+		return map;
+	}, [normalizedCourses]);
+
+	// Helper function to safely format dates
+	const formatDate = (dateValue) => {
+		if (!dateValue) return '-';
+		try {
+			const date = new Date(dateValue);
+			if (isNaN(date.getTime())) return '-';
+			return date.toLocaleDateString();
+		} catch (e) {
+			return '-';
+		}
+	};
+
+	// Helper function to format slot display (day name + time)
+	const formatSlot = (dateValue) => {
+		if (!dateValue) return '-';
+		try {
+			const date = new Date(dateValue);
+			if (isNaN(date.getTime())) return '-';
+			const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+			const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+			return `${dayName} ${time}`;
+		} catch (e) {
+			return '-';
+		}
+	};
+
+	// Helper function to format time from ISO string
+	const formatTime = (dateValue) => {
+		if (!dateValue) return '-';
+		try {
+			const date = new Date(dateValue);
+			if (isNaN(date.getTime())) return '-';
+			return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+		} catch (e) {
+			return '-';
+		}
+	};
 
 	let tableSource = null;
 	console.log("IS SUCCESS:", isSuccess);
@@ -49,41 +104,81 @@ const BookingList = () => {
 	const columns = [
 		{
 			title: "Booking",
-			dataIndex: "code",
-			key: "code",
+			dataIndex: "_id",
+			key: "id",
 			responsive: ["md"], // hide on mobile
 		},
 		{
 			title: "Course",
 			dataIndex: "course",
 			key: "course",
-			width: 100,
+			width: 200,
 			ellipsis: true,
+			render: (courseId) => coursesMap[courseId]?.name || courseId,
 		},
 		{
 			title: "Customer",
-			dataIndex: "customer",
-			key: "customer",
+			dataIndex: "user",
+			key: "user",
 			responsive: ["xl"], // hide on mobile
 		},
 		{
 			title: "Date",
-			dataIndex: "date",
-			key: "date",
+			dataIndex: "createdAt",
+			key: "createdAt",	
 			responsive: ["md"], // hide on mobile
+			render: (date) => formatDate(date),
 		},
 		{
 			title: "Price",
 			dataIndex: "price",
 			key: "price",
 			responsive: ["md"], // desktop only
+			render: (price) => `€${parseFloat(price || 0).toFixed(2)}`,
 		},
 		{
 			title: "Status",
 			dataIndex: "status",
 			key: "status",
-			width: 100,
-			ellipsis: true,
+			width: 120,
+			render: (status) => {
+				const colorMap = {
+					confirmed: 'green',
+					pending: 'orange',
+					cancelled: 'red',
+					completed: 'blue',
+				};
+				return <Tag color={colorMap[status] || 'default'}>{status}</Tag>;
+			},
+		},
+		{
+			title: "Slots",
+			dataIndex: "slots",
+			key: "slots",
+			width: 250,
+			responsive: ["xl"], // desktop only
+			render: (slotIds, record) => {
+				if (!slotIds || slotIds.length === 0) return '-';
+				const course = coursesMap[record.course];
+				if (!course?.slots) return '-';
+				
+				// Find the actual slot details from the course
+				const bookingSlots = slotIds.map(slotId => 
+					course.slots.find(slot => slot._id === slotId)
+				).filter(Boolean);
+				
+				if (bookingSlots.length === 0) return '-';
+				
+				return (
+					<div style={{ maxHeight: '100px', overflowY: 'auto' }}>
+						{bookingSlots.map((slot, index) => (
+							<Tag key={index} color="blue" style={{ marginBottom: '4px', fontSize: '11px' }}>
+								{formatSlot(slot.start)} - {formatTime(slot.end)}
+							</Tag>
+						))}
+					</div>
+				);
+			},
 		},
 		// {
 		// 	title: "Actions",
@@ -100,9 +195,6 @@ const BookingList = () => {
 		// 	),
 		// },
 	];
-
-	const data = [{}, {}, {}, {}]; // Mock data
-
 	return (
 		<>
 			<Card
@@ -116,8 +208,9 @@ const BookingList = () => {
 				<Table
 					columns={columns}
 					dataSource={tableSource}
+					rowKey="_id"
 					expandable={
-						isMobile && {
+						(isMobile || isTablet) && {
 							expandedRowRender: (record) => (
 								<>
 									{/* <Row gutter={[8, 8]}>
@@ -144,20 +237,47 @@ const BookingList = () => {
 
 									<div className="booking-card">
 										<div>
-											<strong>Booking:</strong> {record.code}
-										</div>
-										<div>
-											<strong>Customer:</strong>{" "}
-											{record.customer}
-										</div>
-										<div>
-											<strong>Date:</strong> {record.date}
-										</div>
-										<div>
-											<strong>Price:</strong> {record.price} €
-										</div>
-										<div>
-											<strong>Status:</strong> {record.status}
+										<strong>Booking:</strong> {record._id}
+									</div>
+									<div>
+										<strong>Course:</strong> {coursesMap[record.course]?.name || record.course}
+									</div>
+									<div>
+										<strong>Date:</strong> {formatDate(record.createdAt)}
+									</div>
+									<div>
+										<strong>Price:</strong> €{parseFloat(record.price || 0).toFixed(2)}
+									</div>
+									<div>
+										<strong>Status:</strong> <Tag color={{
+											confirmed: 'green',
+											pending: 'orange',
+											cancelled: 'red',
+											completed: 'blue',
+										}[record.status] || 'default'}>{record.status}</Tag>
+									</div>
+									<div style={{ marginTop: '8px' }}>
+										<strong>Slots:</strong>
+										{record.slots && record.slots.length > 0 ? (() => {
+											const course = coursesMap[record.course];
+											if (!course?.slots) return ' -';
+											
+											const bookingSlots = record.slots.map(slotId => 
+												course.slots.find(slot => slot._id === slotId)
+											).filter(Boolean);
+											
+											if (bookingSlots.length === 0) return ' -';
+											
+											return (
+												<div style={{ marginTop: '4px' }}>
+													{bookingSlots.map((slot, index) => (
+														<Tag key={index} color="blue" style={{ marginBottom: '4px', marginLeft: '4px', fontSize: '12px' }}>
+															{formatSlot(slot.start)} - {formatTime(slot.end)}
+														</Tag>
+													))}
+												</div>
+											);
+										})() : ' -'}
 										</div>
 									</div>
 								</>

@@ -21,7 +21,16 @@ export const authApiSlice = apiSlice.injectEndpoints({
                 url: '/api/v1/auth/logout',
                 method: 'POST',
             }),
-            invalidatesTags: [{ type: 'Auth', id: 'ME' }],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    const { data } = await queryFulfilled
+                    setTimeout(() => {
+                        dispatch(apiSlice.util.resetApiState())
+                    }, 1000)
+                } catch (err) {
+                    console.log(err?.error?.data?.message)
+                }
+            },
         }),
         test: builder.mutation({
             query: () => ({

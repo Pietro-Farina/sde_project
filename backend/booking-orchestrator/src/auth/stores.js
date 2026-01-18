@@ -1,4 +1,4 @@
-const pendingAssertions = new Map(); // nonce -> { userId, frontendRedirectUrl, expiresAt }
+const pendingAssertions = new Map(); // nonce -> { userId, picture, frontendRedirectUrl, expiresAt }
 const refreshAllowlist = new Map();  // jti -> { userId, expiresAt }
 
 function now() {

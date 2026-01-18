@@ -5,6 +5,7 @@ import CoursesGrid from "./features/courses/CoursesGrid";
 import CourseCalendar from "./features/bookings/CourseCalendar";
 import CourseBookingPage from "./features/bookings/CourseBookingPage";
 import BookingList from "./features/bookings/BookingList";
+import BookingSuccessPage from "./features/bookings/BookingSuccessPage";
 import LoginPage from "./features/auth/Login";
 import ProtectedRoute from "./features/auth/ProtectedRoute";
 
@@ -21,6 +22,7 @@ function App() {
 				<Route element={<ProtectedRoute />}>
 					<Route path="book/:id" element={<CourseBookingPage />} />
 					<Route path="bookings" element={<BookingList />} />
+					<Route path="bookings/success/:id" element={<BookingSuccessPage />} />
 				</Route>
 			</Route>
 		</Routes>

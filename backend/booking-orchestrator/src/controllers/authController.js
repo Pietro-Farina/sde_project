@@ -37,12 +37,12 @@ const completeLogin = asyncHandler(async (req, res) => {
         }
     });
 
-    const { userId, frontendRedirectUrl } = pending;
+    const { userId, picture, frontendRedirectUrl } = pending;
 
     // Issue tokens
-    const accessToken = createAccessToken(userId);
+    const accessToken = createAccessToken(userId, picture);
     const jti = newJti();
-    const refreshToken = createRefreshToken(userId, jti);
+    const refreshToken = createRefreshToken(userId, jti, picture);
 
     // allowlist refresh jti (demo-safe)
     const refreshTtl = Number(process.env.REFRESH_TTL_SECONDS || 604800);
@@ -99,10 +99,10 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         // Rotate refresh token: revoke old jti, issue new
         revokeRefresh(payload.jti);
 
-        const newAccess = createAccessToken(payload.sub);
+        const newAccess = createAccessToken(payload.sub, payload.picture);
 
         const newRefreshJti = newJti();
-        const newRefresh = createRefreshToken(payload.sub, newRefreshJti);
+        const newRefresh = createRefreshToken(payload.sub, newRefreshJti, payload.picture);
 
         const refreshTtl = Number(process.env.REFRESH_TTL_SECONDS || 604800);
         allowRefresh(newRefreshJti, payload.sub, refreshTtl);
@@ -182,7 +182,7 @@ const oauthAssert = asyncHandler(async (req, res) => {
 
     // Store pending assertion for the browser finalization step
     // (TTL small to reduce replay window)
-    putPendingAssertion(nonce, { userId, frontendRedirectUrl }, 60);
+    putPendingAssertion(nonce, { userId, picture, frontendRedirectUrl }, 60);
 
     return res.sendStatus(204);
 });
