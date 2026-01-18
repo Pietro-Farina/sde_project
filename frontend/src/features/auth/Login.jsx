@@ -9,7 +9,7 @@ import {
 const { Content } = Layout;
 const { Title, Text } = Typography;
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 const LoginPage = () => {
   const loginWithProvider = (provider) => {

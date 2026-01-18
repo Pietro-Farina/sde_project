@@ -11,17 +11,17 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use((req, res, next) => {
-  const dateTime = new Date().toISOString();
-  const logItem = `${dateTime}\t${req.method}\t${req.url}\t${req.headers.origin}\n`
-  if (!req.url.includes('/health'))
-    console.log(logItem);
-  next();
+	const dateTime = new Date().toISOString();
+	const logItem = `${dateTime}\t${req.method}\t${req.url}\t${req.headers.origin}\n`
+	if (!req.url.includes('/health'))
+		console.log(logItem);
+	next();
 });
 const corsOptions = {
 	origin: function (origin, callback) {
 		// Allow requests with no origin (like mobile apps or Postman)
 		if (!origin) return callback(null, true);
-		
+
 		if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
 			callback(null, true);
 		} else {
@@ -47,7 +47,7 @@ app.get("/health", (req, res) => {
 });
 
 // API info
-app.get("/api", (req, res) => {
+app.get("/api/v1", (req, res) => {
 	res.json({
 		service: "Booking Process Service",
 		version: "1.0.0",
@@ -58,37 +58,37 @@ app.get("/api", (req, res) => {
 });
 
 // Routes
-app.use("/api", routes);
+app.use("/api/v1", routes);
 
 app.get("/openapi.json", (req, res) => {
 	const specPath = path.join(__dirname, "openapi.json");
 	const spec = fs.readFileSync(specPath, "utf-8");
-  res.type("application/json").send(spec);
+	res.type("application/json").send(spec);
 });
 
 app.get("/__test/set-cookie", (req, res) => {
-  res.cookie("test_cookie", "ok", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: false, // FONDAMENTALE
-  });
+	res.cookie("test_cookie", "ok", {
+		httpOnly: true,
+		sameSite: "lax",
+		secure: false, // FONDAMENTALE
+	});
 
-  res.send("cookie set");
+	res.send("cookie set");
 });
 app.get("/__test/check-cookie", (req, res) => {
-  res.json({
-    cookiesHeader: req.headers.cookie || null,
-  });
+	res.json({
+		cookiesHeader: req.headers.cookie || null,
+	});
 });
 
 
 app.all('*', (req, res) => {
-    res.status(404)
-    if (req.accepts('json')) {
-        res.json({ message: '404 Not Found'})
-    } else {
-        res.type('txt').send('404 Not Found')
-    }
+	res.status(404)
+	if (req.accepts('json')) {
+		res.json({ message: '404 Not Found' })
+	} else {
+		res.type('txt').send('404 Not Found')
+	}
 })
 
 // Error handling middleware
@@ -98,7 +98,12 @@ app.use((err, req, res, next) => {
 	console.log(logItem);
 	console.error(err.stack);
 
-	res.status(500).json({ message: "Internal Server Error" });
+	res.status(500).json({
+		error: {
+			code: "INTERNAL_SERVER_ERROR",
+			message: "An unexpected error occurred while processing the request."
+		}
+	});
 });
 
 app.listen(PORT, () => {

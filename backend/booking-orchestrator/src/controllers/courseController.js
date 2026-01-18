@@ -11,7 +11,17 @@ const getAllCourses = asyncHandler(async (req, res) => {
 
 		res.json({ data: courses });
 	} catch (error) {
-		res.status(500).json({ error: error.message });
+		if (error?.status && error?.body) {
+			return res.status(error.status).json(error.body);
+		}
+
+		// unexpected bug
+		return res.status(500).json({
+			error: {
+				code: "INTERNAL_ERROR",
+				message: "Unexpected server error"
+			}
+		});
 	}
 });
 
@@ -19,7 +29,12 @@ const getCourseById = asyncHandler(async (req, res) => {
 	const { id } = req.params;
 
 	if (!id) {
-		return res.status(400).json({ error: "Course ID is required" });
+		return res.status(400).json({
+			error: {
+				code: "MISSING_COURSE_ID",
+				message: "Course ID is required"
+			}
+		});
 	}
 
 	try {
@@ -27,12 +42,22 @@ const getCourseById = asyncHandler(async (req, res) => {
 
 		res.status(200).json({ data: { course } });
 	} catch (error) {
-		res.status(500).json({ error: error.message });
+		if (error?.status && error?.body) {
+			return res.status(error.status).json(error.body);
+		}
+
+		// unexpected bug
+		return res.status(500).json({
+			error: {
+				code: "INTERNAL_ERROR",
+				message: "Unexpected server error"
+			}
+		});
 	}
 });
 
 module.exports = {
 	test,
-    getAllCourses,
-    getCourseById,
+	getAllCourses,
+	getCourseById,
 };

@@ -20,6 +20,5 @@ router.get("/me", requireAuth, (req, res) => {
 });
 
 router.post('/internal/assert', authController.oauthAssert);
-router.get('/callback/:provider', authController.oauthCallback);
 
 module.exports = router;

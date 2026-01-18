@@ -128,7 +128,7 @@ services:
       - /app/node_modules
     environment:
       - VITE_HOST=0.0.0.0
-      - VITE_API_URL=http://localhost:3000/api
+      - VITE_API_URL=http://localhost:3000/api/v1
       - NODE_ENV=development
     env_file:
       - ./frontend/.env

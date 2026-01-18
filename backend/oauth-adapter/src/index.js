@@ -74,7 +74,12 @@ app.use((err, req, res, next) => {
   console.log(logItem);
   console.error(err.stack);
 
-  res.status(500).json({ message: "Internal Server Error" });
+  res.status(500).json({
+    error: {
+      code: "INTERNAL_SERVER_ERROR",
+      message: "An unexpected error occurred while processing the request."
+    }
+  });
 });
 
 app.listen(PORT, () => {

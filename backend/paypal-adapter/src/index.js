@@ -37,22 +37,27 @@ app.get("/openapi.json", (req, res) => {
 
 // 404 handler
 app.all('*', (req, res) => {
-    res.status(404)
-    if (req.accepts('json')) {
-        res.json({ message: '404 Not Found'})
-    } else {
-        res.type('txt').send('404 Not Found')
-    }
+  res.status(404)
+  if (req.accepts('json')) {
+    res.json({ message: '404 Not Found' })
+  } else {
+    res.type('txt').send('404 Not Found')
+  }
 })
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-	const dateTime = new Date().toISOString();
-	const logItem = `${dateTime}\t${req.method}\t${req.url}\t${req.headers.origin}\n`
-	console.log(logItem);
-	console.error(err.stack);
+  const dateTime = new Date().toISOString();
+  const logItem = `${dateTime}\t${req.method}\t${req.url}\t${req.headers.origin}\n`
+  console.log(logItem);
+  console.error(err.stack);
 
-	res.status(500).json({ message: "Internal Server Error" });
+  res.status(500).json({
+    error: {
+      code: "INTERNAL_SERVER_ERROR",
+      message: "An unexpected error occurred while processing the request."
+    }
+  });
 });
 
 app.listen(PORT, () => {

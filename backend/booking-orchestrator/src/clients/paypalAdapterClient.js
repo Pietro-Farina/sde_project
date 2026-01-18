@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { normalizeAxiosError } = require("../utils/normalizeAxiosError");
 
 const PAYPAL_ADAPTER_SERVICE_URL = process.env.PAYPAL_ADAPTER_SERVICE_URL || "http://localhost:3003";
 
@@ -11,7 +12,7 @@ class PaypalAdapterClient {
             );
             return response.data.data;
         } catch (error) {
-            throw new Error(`Paypal Adapter service error: ${error.message}`);
+            throw normalizeAxiosError(error, "PAYPAL_ADAPTER");
         }
     }
 
@@ -23,7 +24,7 @@ class PaypalAdapterClient {
             );
             return response.data.data;
         } catch (error) {
-            throw new Error(`Paypal Adapter service error: ${error.message}`);
+            throw normalizeAxiosError(error, "PAYPAL_ADAPTER");
         }
     }
 
@@ -35,7 +36,7 @@ class PaypalAdapterClient {
             );
             return response.data.data;
         } catch (error) {
-            throw new Error(`Paypal Adapter service error: ${error.message}`);
+            throw normalizeAxiosError(error, "PAYPAL_ADAPTER");
         }
     }
 }

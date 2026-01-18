@@ -3,6 +3,10 @@ const asyncHandler = require('express-async-handler')
 const bookingSettings = require('../config/bookingSettings');
 
 // Reservations
+/**
+ * Can throw: 201, 400, 409, 500
+ * Can propagate errors from other services: 400, 404, 409, 500
+ */
 const createReservation = asyncHandler(async (req, res) => {
     console.log("Create reservation request body:", req.body);
     // Logic to create a reservation
@@ -19,6 +23,7 @@ const createReservation = asyncHandler(async (req, res) => {
     }
 
     // Check the course and slot availability from data service
+    // -> either 200 or 500
     const { course } = await dataServiceClient.getCourseById(courseId);
 
     const unavailableSlots = slotIds.filter(slotId => {
@@ -52,6 +57,7 @@ const createReservation = asyncHandler(async (req, res) => {
         slotIds,
         expiresInMinutes: bookingSettings.reservationExpirationMinutes,
     };
+    // 201, 400, 409, 500
     const { reservation } = await dataServiceClient.createReservationIfAvailable(reservationData);
 
     // TODO DECIDE WHAT TO RETURN HERE
@@ -63,6 +69,10 @@ const createReservation = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * Can throw: 400, 404, 500
+ * Can propagate errors from other services: 400, 500
+ */
 const getActiveCourseReservationForUser = asyncHandler(async (req, res) => {
     console.log("Get active course reservation request query:", req.query);
     const { courseId, userId } = req.query;
@@ -79,6 +89,7 @@ const getActiveCourseReservationForUser = asyncHandler(async (req, res) => {
     }
 
     // Fetch all reservations from booking-data service
+    // Can throw 400, 500
     const { reservations } = await dataServiceClient.getCourseReservationsByUserId({ userId, courseId });
 
     // Filter active reservations
@@ -107,6 +118,10 @@ const getActiveCourseReservationForUser = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * Can throw: 204, 400, 403, 409, 500
+  * Can propagate errors from other services: 400, 404, 409, 500
+ */
 const cancelReservation = asyncHandler(async (req, res) => {
     console.log("Cancel reservation request body:", req.body);
     // Logic to cancel a reservation by ID
@@ -123,6 +138,7 @@ const cancelReservation = asyncHandler(async (req, res) => {
     }
 
     // Fetch reservation details from booking-data service
+    // 400, 404, 500
     const { reservation } = await dataServiceClient.getReservationById(id);
 
     // IS HELD? then free up slots in the course
@@ -145,12 +161,17 @@ const cancelReservation = asyncHandler(async (req, res) => {
     }
 
     // proceed to cancel reservation
+    // 204, 400, 404, 500
     await dataServiceClient.safeCancelReservationById(id);
 
-    return res.status(204).end();
+    return res.status(204);
 })
 
 // Bookings
+/**
+ * Can throw: 201, 400, 403, 409, 500
+ * Can propagate errors from other services: 400, 404, 500
+ */
 const createBooking = asyncHandler(async (req, res) => {
     console.log("Create booking request body:", req.body);
     const { userId, reservationId, transactionId, price } = req.body;
@@ -166,6 +187,7 @@ const createBooking = asyncHandler(async (req, res) => {
     }
 
     // I evaluate if the reservations exists, is held, belongs to the user, not expired
+    // 400, 404, 500
     const { reservation } = await dataServiceClient.getReservationById(reservationId);
 
     if (reservation.user.toString() !== userId) {
@@ -196,6 +218,7 @@ const createBooking = asyncHandler(async (req, res) => {
     }
 
     // I then issue the creation of the booking and the completion of the reservation in a transaction
+    // 400, 404, 500
     const { booking: newBooking } = await dataServiceClient.createBooking({
         courseId: reservation.course.toString(),
         userId,
@@ -210,6 +233,10 @@ const createBooking = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * Can throw: 200, 500
+ * Can propagate errors from other services: 500
+ */
 const getBookings = asyncHandler(async (req, res) => {
     console.log("Get bookings request query:", req.query);
     const { userId } = req.query;
