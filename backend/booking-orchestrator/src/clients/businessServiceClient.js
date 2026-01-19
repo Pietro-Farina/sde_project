@@ -41,6 +41,18 @@ class BusinessServiceClient {
 		}
 	}
 
+	async getUserReservationById(id, userId) {
+		try {
+			const response = await axios.get(
+				`${BUSINESS_SERVICE_URL}/api/v1/reservations/${id}/price`,
+				{ params: { userId } }
+			);
+			return response.data.data;
+		} catch (error) {
+			throw normalizeAxiosError(error, "BUSINESS_SERVICE");
+		}
+	}
+
 	async getAllBookings() {
 		try {
 			const response = await axios.get(

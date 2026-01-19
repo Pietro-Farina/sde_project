@@ -308,6 +308,86 @@
         }
       }
     },
+    "/api/v1/reservations/{id}": {
+      "get": {
+        "operationId": "getReservationDetailsById",
+        "tags": [
+          "reservations"
+        ],
+        "summary": "Get reservation details by ID",
+        "description": "Returns reservation details and the price option for the reservation. The requesting user's id must be provided as a query parameter for authorization checks.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Reservation ID",
+            "schema": {
+              "type": "string"
+            },
+            "example": "6969808214d2f13caa1e5f16"
+          },
+          {
+            "in": "query",
+            "name": "userId",
+            "required": true,
+            "description": "ID of the user requesting the reservation",
+            "schema": {
+              "type": "string"
+            },
+            "example": "TEST_USER_12345"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reservation details retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservationId": {
+                          "type": "string"
+                        },
+                        "priceToPay": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "getReservationDetailsResponse": {
+                    "summary": "Example reservation details",
+                    "value": {
+                      "data": {
+                        "reservationId": "6969808214d2f13caa1e5f16",
+                        "priceToPay": "49.00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/v1/reservations/active": {
       "get": {
         "operationId": "getActiveCourseReservationForUser",

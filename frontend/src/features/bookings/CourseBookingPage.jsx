@@ -18,6 +18,7 @@ export default function CourseBookingPage() {
 	const [selectedSlotsIds, setSelectedSlotsIds] = useState([]);
 	const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
 	const [isReservationActive, setIsReservationActive] = useState(false);
+	const [currentWorkingReservationId, setCurrentWorkingReservationId] = useState(null);
 	const [{ isInitial }, dispatch] = usePayPalScriptReducer();
 	const { slots } = useSlots()
 
@@ -45,6 +46,7 @@ export default function CourseBookingPage() {
 		isSuccess: activeReservationIsSuccess,
 		isError: activeReservationIsError,
 		error: activeReservationError,
+		refetch: refetchActiveReservation,
 	} = useGetActiveReservationQuery({ userId, courseId: id }, { skip: !userId || !id });
 
 	const [
@@ -58,17 +60,29 @@ export default function CourseBookingPage() {
 		}
 	] = useCancelActiveReservationMutation();
 
+	// Update currentWorkingReservationId when activeReservation changes
+	useEffect(() => {
+		if (activeReservation?.id && activeReservation.id !== currentWorkingReservationId && current === 2) {
+			// We're on payment step and have a fresh reservation - track it
+			setCurrentWorkingReservationId(activeReservation.id);
+		}
+	}, [activeReservation, current]);
+
 	// Handle the reservation result one time
 	useEffect(() => {
 		if (activeReservationIsSuccess && activeReservation) {
 			console.log("Active reservation found:", activeReservation);
-			setIsReservationModalOpen(true);
+			// Only show modal if it's a different reservation (e.g., after page refresh)
+			// AND we're not already on the payment step
+			if (activeReservation.id !== currentWorkingReservationId && current !== 2) {
+				setIsReservationModalOpen(true);
+			}
 		}
 		if (activeReservationIsError) {
 			console.error("Error checking reservation:", activeReservationError);
 			// Handle error (e.g., user has no active reservation)
 		}
-	}, [activeReservationIsSuccess, activeReservationIsError]);
+	}, [activeReservationIsSuccess, activeReservationIsError, activeReservation, currentWorkingReservationId, current]);
 
 	const [
 		startBookingProcess,
@@ -127,7 +141,17 @@ export default function CourseBookingPage() {
 				courseId: course.id,
 				slotIds: selectedSlotsIds,
 			};
+			
+			// If there's an active reservation, include it to reuse instead of creating new one
+			if (activeReservation?.id) {
+				bookingData.reservationId = activeReservation.id;
+			}
+			
 			const result = await startBookingProcess(bookingData);
+			
+			// RTK Query will automatically refetch activeReservation due to tag invalidation
+			// Immediately refetch to update activeReservation with the new/updated reservation
+			// await refetchActiveReservation();			
 
 			// Handle result (e.g., proceed to payment)
 			// return order ID
@@ -135,6 +159,8 @@ export default function CourseBookingPage() {
 			return result.data.orderID;
 		} catch (err) {
 			console.error("Failed to start booking process: ", err);
+						// Immediately refetch to update activeReservation with the new/updated reservation
+			await refetchActiveReservation();
 			throw new Error(`Failed to start booking process: ${err.message}`);
 		}
 	};
@@ -143,16 +169,30 @@ export default function CourseBookingPage() {
 		// TODO: Implement restore reservation logic
 		console.log("Restoring reservation:", activeReservation);
 		setSelectedSlotsIds(activeReservation.slots);
-		setCurrent(1); // Go to payment step
+		setCurrentWorkingReservationId(activeReservation.id);
+		setCurrent(2); // Go to payment step
 		setIsReservationActive(true);
 		setIsReservationModalOpen(false);
 	};
 
-	const handleCancelReservation = () => {
-		// TODO: Implement cancel reservation logic
-		console.log("Cancelling reservation:", activeReservation);
-		cancelActiveReservation(activeReservation.id);
-		setIsReservationModalOpen(false);
+	const handleCancelReservation = async () => {
+		try {
+			console.log("Cancelling reservation:", activeReservation);
+			// await mutation and throw on error
+			await cancelActiveReservation(activeReservation.id).unwrap();
+
+			// refetch active reservation to ensure cache is updated
+			if (typeof refetchActiveReservation === 'function') {
+				await refetchActiveReservation();
+			}
+
+			setIsReservationModalOpen(false);
+			setIsReservationActive(false);
+			setCurrentWorkingReservationId(null);
+		} catch (err) {
+			console.error('Failed to cancel reservation:', err);
+			message.error('Unable to cancel reservation. Please try again.');
+		}
 	};
 
 	return (
@@ -167,7 +207,7 @@ export default function CourseBookingPage() {
 			{/* Active Reservation Modal */}
 			<Modal
 				title="Active Reservation Found"
-				open={isReservationModalOpen}
+				open={isReservationModalOpen && activeReservation}
 				onCancel={() => setIsReservationModalOpen(false)}
 				footer={[
 					<Button
@@ -206,7 +246,8 @@ export default function CourseBookingPage() {
 				optionSelected={optionSelected}
 				handleStartBooking={handleStartBooking}
 				confirmBooking={confirmBooking}
-				reservationData={reservationData}
+				activeReservation={activeReservation}
+				currentWorkingReservationId={currentWorkingReservationId}
 				/>}
 
 			{/* Sticky / bottom guide */}

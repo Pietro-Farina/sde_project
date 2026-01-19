@@ -253,7 +253,7 @@ const cancelReservationWithTransactionById = asyncHandler(async (req, res) => {
         // Commit transaction
         await session.commitTransaction();
 
-        res.status(204).send();
+        return res.sendStatus(204);
     } catch (error) {
         await session.abortTransaction();
         throw {

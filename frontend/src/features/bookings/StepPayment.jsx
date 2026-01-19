@@ -5,9 +5,11 @@ import { useNavigate } from 'react-router';
 
 const { Title, Text } = Typography;
 
-export const StepPayment = ({ selectedSlots, course, optionSelected, handleStartBooking, reservationData, confirmBooking }) => {
+export const StepPayment = ({ selectedSlots, course, optionSelected, handleStartBooking, activeReservation, currentWorkingReservationId, confirmBooking }) => {
 	const [{ isInitial, isPending, isResolved, isRejected }, dispatch] = usePayPalScriptReducer();
 	const navigate = useNavigate();
+	console.log("PAYMENT STEP - activeReservation:", activeReservation);
+	console.log("PAYMENT STEP - currentWorkingReservationId:", currentWorkingReservationId);
 
 	return (
 		<Card
@@ -73,8 +75,10 @@ export const StepPayment = ({ selectedSlots, course, optionSelected, handleStart
 							}}
 							createOrder={async () => {
 								try {
+									// handleStartBooking will use activeReservation.id internally and refetch
+									console.log("Creating order, activeReservation.id:", activeReservation?.id);
 									const orderID = await handleStartBooking();
-									console.log("RETURNED:", orderID)
+									console.log("RETURNED orderID:", orderID);
 									return orderID;
 								} catch (err) {
 									console.error("Failed to create order: ", err);
@@ -87,7 +91,8 @@ export const StepPayment = ({ selectedSlots, course, optionSelected, handleStart
 									console.log("ON APPROVE: orderID:", data.orderID);
 									//
 									const res = await confirmBooking({
-										orderID: data.orderID, reservationId: reservationData.reservationId
+									orderID: data.orderID, 
+									reservationId: currentWorkingReservationId || activeReservation?.id
 									});
 									console.log("Capture result:", res);
 									console.log("Booking:", res.data.booking);

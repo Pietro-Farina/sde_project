@@ -8,6 +8,7 @@ router.post('/bookings', withHttpErrorHandling(bookingController.createBooking))
 
 router.post('/reservations', withHttpErrorHandling(bookingController.createReservation));
 router.get('/reservations/active', withHttpErrorHandling(bookingController.getActiveCourseReservationForUser));
+router.get('/reservations/:id/price', withHttpErrorHandling(bookingController.getReservationDetailsById));
 router.patch('/reservations/:id/cancel', withHttpErrorHandling(bookingController.cancelReservation));
 
 module.exports = router;

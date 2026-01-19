@@ -119,6 +119,58 @@ const getActiveCourseReservationForUser = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Can throw: 200, 400, 403, 409, 500
+ * Can propagate errors from other services: 400, 404, 500
+ */
+const getReservationDetailsById = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { userId } = req.query;
+
+    if (!id) {
+        return res.status(400).json({
+            error: {
+                code: "MISSING_RESERVATION_ID",
+                message: "Reservation ID is required."
+            }
+        });
+    }
+
+    // Fetch reservation details from booking-data service
+    // 400, 404, 500
+    const { reservation } = await dataServiceClient.getReservationById(id);
+
+    // IS HELD? then free up slots in the course
+    if (reservation.user.toString() !== userId) {
+        return res.status(403).json({
+            error: {
+                code: "ACCESS_DENIED",
+                message: "User do not have permission to cancel this reservation."
+            }
+        });
+    }
+
+    // -> either 200 or 500
+    const { course } = await dataServiceClient.getCourseById(reservation.course.toString());
+
+    const priceOption = course.priceOptions.find(option => option.numberSlots === reservation.slots.length);
+    if (!priceOption) {
+        return res.status(400).json({
+            error: {
+                code: "NO_PRICING_OPTION",
+                message: "No pricing option for the selected number of slots"
+            }
+        });
+    }
+
+    return res.status(200).json({
+        data: {
+            reservationId: reservation._id,
+            priceToPay: priceOption.price
+        }
+    });
+});
+
+/**
  * Can throw: 204, 400, 403, 409, 500
   * Can propagate errors from other services: 400, 404, 409, 500
  */
@@ -164,7 +216,7 @@ const cancelReservation = asyncHandler(async (req, res) => {
     // 204, 400, 404, 500
     await dataServiceClient.safeCancelReservationById(id);
 
-    return res.status(204);
+    return res.sendStatus(204);
 })
 
 // Bookings
@@ -256,5 +308,6 @@ module.exports = {
     getActiveCourseReservationForUser,
     cancelReservation,
     createBooking,
-    getBookings
+    getBookings,
+    getReservationDetailsById
 };

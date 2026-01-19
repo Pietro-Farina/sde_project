@@ -11,7 +11,9 @@ const { sendError, isNormalizedDownstreamError, translateDependencyError } = req
  */
 const startBookingProcess = asyncHandler(async (req, res) => {
     // Logic to start the booking process
-    const { courseId, slotIds } = req.body;
+    const { courseId, slotIds, reservationId: previousReservationId } = req.body;
+
+    console.log("Start booking process request body:", req.body);
 
     if (!courseId || !Array.isArray(slotIds) || slotIds.length === 0) {
         return sendError(res, 400, "INVALID_REQUEST", "courseId and slotIds are required."); // status(400)
@@ -24,11 +26,16 @@ const startBookingProcess = asyncHandler(async (req, res) => {
     let reservationResult;
     try {
         // Can throw: 400, 404, 409, 5xx
-        reservationResult = await businessServiceClient.createPendingReservation({
-            userId,
-            courseId,
-            slotIds,
-        });
+        if (previousReservationId) {
+            console.log("Reusing previous reservation ID:", previousReservationId);
+            reservationResult = await businessServiceClient.getUserReservationById(previousReservationId, userId);
+        } else {
+            reservationResult = await businessServiceClient.createPendingReservation({
+                userId,
+                courseId,
+                slotIds,
+            });
+        }
     } catch (error) {
         // if 4xx I propagate
         // if 5xx I translate to service unavailable
@@ -41,7 +48,7 @@ const startBookingProcess = asyncHandler(async (req, res) => {
         return translateDependencyError(res, error, "RESERVATION_CREATION_FAILED");
     }
 
-    console.log("Pending reservation created:", reservationResult);
+    console.log(previousReservationId ? "Pending reservation retrieved:" : "Pending reservation created:", reservationResult);
 
     const { reservationId, priceToPay } = reservationResult;
 
@@ -153,7 +160,7 @@ const getPendingReservation = asyncHandler(async (req, res) => {
             userId,
             courseId,
         });
-        console.log("Fetched pending reservation:", result);
+        console.log("Fetched pending reservation:", result._id);
         res.status(200).json({
             data: result,
         });
@@ -188,7 +195,9 @@ const cancelReservation = asyncHandler(async (req, res) => {
         // Can throw: 400, 403, 404, 409, 5xx
         await businessServiceClient.cancelPendingReservation(reservationId, userId);
 
-        return res.status(204)
+        // Send 204 No Content explicitly
+        console.log("Reservation canceled:", reservationId);
+        return res.sendStatus(204);
     } catch (error) {
         if (isNormalizedDownstreamError(error)) {
             const status = error.status;

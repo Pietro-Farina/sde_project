@@ -388,6 +388,10 @@
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "reservationId": {
+                    "type": "string",
+                    "description": "Optional existing reservation id to reuse instead of creating a new one"
                   }
                 },
                 "required": ["courseId", "slotIds"]
@@ -397,7 +401,8 @@
                   "summary": "Example start booking request",
                   "value": {
                     "courseId": "695ba111b2e63b75bee66279",
-                    "slotIds": ["695ba111b2e63b75bee6627b"]
+                    "slotIds": ["695ba111b2e63b75bee6627b"],
+                    "reservationId": "696prev1234567890abcdef"
                   }
                 }
               }

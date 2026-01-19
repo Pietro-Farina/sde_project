@@ -44,7 +44,14 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
                     return response.status === 201 && !result.isError
                 },
             }),
-            invalidatesTags: [{ type: 'Booking', id: 'LIST' }],
+            invalidatesTags: (result, error, arg) => {
+                // Always invalidate bookings list and reservations to refetch active reservation
+                // This is important because the booking might fail but still create a reservation
+                return [
+                    { type: 'Booking', id: 'LIST' },
+                    { type: 'Reservation', id: 'LIST' }
+                ];
+            },
             transformResponse: (responseData) => {
                 console.log("FROM apiSlice: ", responseData.data)
                 return responseData.data;
@@ -62,7 +69,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
                     return response.status === 201 && !result.isError
                 },
             }),
-            invalidatesTags: [{ type: 'Booking', id: 'LIST' }],
+            invalidatesTags: [{ type: 'Booking', id: 'LIST' }, { type: 'Reservation', id: 'LIST' }],
             transformResponse: (responseData) => {
                 console.log("FROM apiSlice: ", responseData.data)
                 return responseData.data;
@@ -74,29 +81,45 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
                 method: 'POST',
                 body: reservationData,
                 validateStatus: (response, result) => {
-                    return (response.status === 200 && !result.isError) || response.status === 404;
+                    // Accept 200 (found) and 404 (no active reservation) as valid responses
+                    return (response.status === 200 && !result?.isError) || response.status === 404;
                 },
             }),
             // keepUnusedDataFor: 5,
-            transformResponse: responseData => {
-                console.log(responseData)
+            transformResponse: (responseData, meta) => {
+                console.log("Active reservation response:", responseData, "Status:", meta?.response?.status);
+                // Handle 404 - no active reservation
+                if (meta?.response?.status === 404 || !responseData?.data) {
+                    return null;
+                }
                 const activeReservation = { ...responseData.data, id: responseData.data._id };
                 delete activeReservation._id;
                 return activeReservation;
             },
             providesTags: (result, error, arg) => {
-                return [{ type: 'Reservation', id: result?.id }]
+                // Provide both specific ID and LIST tags so mutations can invalidate properly
+                return result?.id 
+                    ? [{ type: 'Reservation', id: result.id }, { type: 'Reservation', id: 'LIST' }]
+                    : [{ type: 'Reservation', id: 'LIST' }];
             }
         }),
         cancelActiveReservation: builder.mutation({
             query: (id) => ({
                 url: `/api/v1/bookings/reservations/${id}/cancel`,
                 method: 'PATCH',
-                validateStatus: (response, result) => {
-                    return response.status === 204 && !result.isError
+                validateStatus: (response) => {
+                    // 204 has no content, so don't check result
+                    return response.status === 204;
                 },
             }),
-            invalidatesTags: [{ type: 'Reservation', id: 'LIST' }],
+            invalidatesTags: (result, error, arg) => {
+                // arg is the reservation ID passed to the mutation
+                console.log("Invalidating tags for reservation ID:", arg);
+                return [
+                    { type: 'Reservation', id: 'LIST' },
+                    { type: 'Reservation', id: arg }
+                ];
+            },
         }),
     }),
 });
