@@ -141,7 +141,7 @@
             "allowReserved": false
           }
         ],
-        "description": "Returns a list of bookings from the data store.\n\nThe endpoint supports optional query parameters to filter the results.\nWhen no filters are provided, all bookings are returned.\n\nCurrently supported filters:\n- `userId`:  returns only bookings associated with the specified user."
+        "description": "Retrieves all booking records from the database, with optional filtering by user ID.\n\nThis endpoint performs a read-only query against the bookings collection. When no filters are provided, all confirmed bookings across all users are returned. Results are returned as raw MongoDB documents including all internal fields.\n\n**Filtering:**\n- `userId`: Returns only bookings associated with the specified user ID. When provided, the query filters by the `user` field in the booking document.\n\n**Use cases:**\n- Retrieve a user's booking history\n- Admin view of all bookings in the system\n- Audit and reporting purposes"
       },
       "post": {
         "operationId": "createABookingAtomically",
@@ -210,7 +210,7 @@
             "$ref": "#/components/responses/InternalServerError"
           }
         },
-        "description": "Creates a booking record and finalizes the associated reservation within a single atomic operation.\n\nThe endpoint validates the provided booking data and executes all database operations inside a transaction.\nUpon successful booking creation, the related reservation is transitioned to the `completed` state.\n\nIn case of failure, all changes are rolled back to preserve consistency.",
+        "description": "Atomically creates a new confirmed booking and finalizes the associated reservation in a single database transaction.\n\n**Transaction Flow:**\n1. Validates all required booking data (courseId, userId, reservationId, slots, transactionId, price)\n2. Validates that the specified reservation exists\n3. Creates a new booking document in `confirmed` status\n4. Updates the associated reservation status to `completed`\n5. Commits the transaction only if all operations succeed\n\n**Atomicity Guarantee:**\nAll database operations are executed within a MongoDB transaction. If any step fails, all changes are rolled back to maintain data consistency. This ensures that a booking is never created without properly completing its reservation.\n\n**Important:**\n- The reservation must exist before creating a booking\n- Slot availability is NOT modified by this endpoint (it should have been decremented when the reservation was created)\n- The transactionId should reference a successful payment transaction",
         "requestBody": {
           "required": true,
           "description": "",
@@ -406,7 +406,7 @@
           }
         },
         "parameters": [],
-        "description": "Returns all course records stored in the data service.\nThis endpoint performs a read-only operation and does not apply filtering or pagination. The response contains an array of course objects wrapped inside a `data` envelope."
+        "description": "Retrieves all course records stored in the database without any filtering or pagination.\n\n**Response Details:**\nReturns complete course documents including:\n- Course metadata (name, description, open status)\n- All time slots with real-time availability counts\n- Pricing options for different slot combinations\n- MongoDB internal fields (_id, __v, createdAt, updatedAt)\n\n**Slot Availability:**\nThe `available` field in each slot reflects real-time availability. This value is decremented when reservations are created and incremented when reservations are cancelled or expire.\n\n**Use cases:**\n- Display course catalog to users\n- Check current availability before creating reservations\n- Administrative course management"
       }
     },
     "/api/v1/courses/{id}": {
@@ -416,7 +416,7 @@
           "courses"
         ],
         "summary": "Retrieve a single course by its id.",
-        "description": "Fetches a specific course using its MongoDB ObjectId.\nThe endpoint validates the presence and format of the identifier before querying the database.\nIf the course exists, it is returned inside a `data` envelope.",
+        "description": "Retrieves detailed information for a single course identified by its MongoDB ObjectId.\n\n**Validation:**\n- The ID parameter is validated as a proper MongoDB ObjectId format\n- Returns 400 if the ID format is invalid\n- Returns 404 if no course exists with the specified ID\n\n**Response Details:**\nReturns the complete course document including:\n- Course information (name, description)\n- All available time slots with current capacity and availability\n- Pricing structure for different slot combinations\n- Timestamps and MongoDB metadata\n\n**Real-time Availability:**\nThe slot availability counts reflect the current state and are updated atomically when reservations are created or cancelled.",
         "parameters": [
           {
             "in": "path",
@@ -644,7 +644,7 @@
             "allowReserved": false
           }
         ],
-        "description": "Returns a list of reservations from the data store.\n\nThe endpoint supports optional query parameters to filter the results.\nWhen no filters are provided, all reservations are returned.\n\nCurrently supported filters:\n- `userId`:  returns only reservations associated with the specified user.\n- `courseId`:  returns only reservations for the specified course."
+        "description": "Retrieves reservation records from the database with optional filtering by user ID and/or course ID.\n\n**Filtering Options:**\n- No filters: Returns all reservations in the system regardless of status\n- `userId`: Returns only reservations for the specified user\n- `courseId`: Returns only reservations for the specified course (validates ObjectId format)\n- Both filters: Returns reservations matching both criteria (user AND course)\n\n**Reservation Statuses:**\nResults may include reservations in any status:\n- `held`: Active reservation with slot availability temporarily held\n- `completed`: Reservation successfully converted to a confirmed booking\n- `cancelled`: Manually cancelled reservation with slots released\n- `expired`: Reservation that expired before being confirmed (may be cleaned up by cron job)\n\n**Use cases:**\n- Check user's active and past reservations\n- Audit reservation history for a course\n- Monitor system-wide reservation activity"
       },
       "post": {
         "operationId": "createAReservationAtomically",
@@ -652,7 +652,7 @@
           "reservations"
         ],
         "summary": "Create a reservation and hold slot availability atomically.",
-        "description": "Creates a new reservation for a course by atomically validating slot availability, decrementing available capacity, and persisting the reservation in a single database transaction.\n\nAll specified slots must exist within the course and have sufficient availability.If any validation fails, no changes are applied.\n\nThe reservation is created in a `held` state and includes an expiration timestamp after which it may be automatically cleaned up.",
+        "description": "Atomically creates a new reservation and holds the specified slot availability within a single database transaction.\n\n**Transaction Flow:**\n1. Validates the course exists\n2. Verifies all specified slot IDs exist within the course\n3. Checks that each slot has at least 1 available space\n4. Decrements the `available` count for each selected slot by 1\n5. Creates a new reservation in `held` status with calculated expiration time\n6. Commits the transaction only if all operations succeed\n\n**Atomicity Guarantee:**\nAll operations are wrapped in a MongoDB transaction. If any validation fails or if slots become unavailable between checks, the entire transaction is rolled back and no changes are persisted. This prevents race conditions and ensures data consistency.\n\n**Expiration:**\nThe reservation is created with an expiration timestamp calculated as `now + expiresInMinutes`. After this time, the reservation may be automatically cancelled by the cleanup cron job, which will restore the held slot availability.\n\n**Conflict Handling:**\n- Returns 404 if the course doesn't exist\n- Returns 400 if any slot ID is not found in the course\n- Returns 409 if any slot has zero availability",
         "responses": {
           "201": {
             "description": "The request was successful: a new reservation was created and the slot availability was updated accordingly.",
@@ -854,7 +854,7 @@
             "$ref": "#/components/responses/InternalServerError"
           }
         },
-        "description": "Returns a single reservation identified by its unique reservation ID.\n\nThe endpoint validates the ID format and returns an error if the reservation does not exist."
+        "description": "Retrieves complete details for a single reservation identified by its MongoDB ObjectId.\n\n**Validation:**\n- Validates the ID parameter is a properly formatted MongoDB ObjectId\n- Returns 400 for invalid ID format\n- Returns 404 if no reservation exists with the specified ID\n\n**Response:**\nReturns the full reservation document including:\n- Associated course and user IDs\n- Array of reserved slot IDs\n- Current status (held, completed, cancelled, or expired)\n- Expiration timestamp (for held reservations)\n- Creation and modification timestamps\n- MongoDB metadata fields\n\n**Use cases:**\n- Verify reservation details before payment\n- Check reservation status and expiration\n- Retrieve reservation data for booking confirmation"
       }
     },
     "/api/v1/reservations/{id}/cancel": {
@@ -897,7 +897,7 @@
             "$ref": "#/components/responses/InternalServerError"
           }
         },
-        "description": "Cancels an existing reservation and restores the associated slot availability in a single database transaction.\n\nThe reservation must exist and reference a valid course and slots. If any part of the operation fails, no changes are committed.\n\nUpon success, the reservation status is updated to `cancelled` and no response body is returned"
+        "description": "Atomically cancels an existing reservation and restores slot availability within a single database transaction.\n\n**Transaction Flow:**\n1. Validates the reservation ID format (MongoDB ObjectId)\n2. Retrieves the reservation document\n3. Verifies the associated course exists\n4. Validates all reserved slots still exist in the course\n5. Increments the `available` count for each reserved slot by 1\n6. Updates the reservation status to `cancelled`\n7. Commits the transaction only if all operations succeed\n\n**Atomicity Guarantee:**\nAll database operations are executed within a MongoDB transaction. If any step fails (e.g., course not found, slot mismatch), the entire transaction is rolled back and no changes are persisted.\n\n**Idempotency:**\nThis endpoint can be called on already-cancelled reservations. The operation will still validate data integrity but may not modify any documents if the status is already `cancelled`.\n\n**Use cases:**\n- User explicitly cancels a pending reservation\n- Timeout/cleanup of abandoned reservations\n- Administrative cancellation of problematic reservations\n\n**Success Response:**\nReturns 204 No Content with no response body upon successful cancellation."
       }
     },
     "/api/v1/reservations/cleanup": {
@@ -907,7 +907,7 @@
           "reservations"
         ],
         "summary": "Clean up expired held reservations.",
-        "description": "Identifies expired reservations in held status and cancels them in batches.\n\nFor each expired reservation:\n- Slot availability is restored\n- Reservation status is set to cancelled\n- Operations are executed transactionally per reservation\n\nThe endpoint returns a summary of processed, successfully cleaned, and failed reservations.",
+        "description": "Batch cleanup job that identifies and cancels expired reservations in `held` status, restoring their slot availability.\n\n**Cleanup Process:**\n1. Queries for reservations with status=`held` and expiration timestamp < current time\n2. Limits results to a configured batch size to prevent overwhelming the database\n3. For each expired reservation, executes a cancellation transaction:\n   - Validates the associated course exists\n   - Verifies all reserved slots exist\n   - Increments slot availability counters\n   - Updates reservation status to `cancelled`\n4. Tracks success/failure counts for each reservation processed\n\n**Transaction Isolation:**\nEach reservation is cancelled in its own separate transaction. If one reservation fails to clean up, others in the batch continue processing. This prevents a single failure from blocking the entire cleanup job.\n\n**Error Handling:**\nErrors during individual reservation cleanup are caught and logged, with the reservation counted as `failed`. The endpoint continues processing remaining reservations in the batch.\n\n**Response:**\nReturns statistics about the cleanup operation:\n- `processed`: Total number of expired reservations found and attempted\n- `cleaned`: Number successfully cancelled with slots restored  \n- `failed`: Number that encountered errors during cancellation\n\n**Intended Usage:**\nThis endpoint should be called periodically by a cron job or scheduled task to ensure expired reservations don't permanently hold slot availability.",
         "responses": {
           "200": {
             "description": "The request was successful, and the server has returned the requested resource in the response body.",

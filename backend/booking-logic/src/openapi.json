@@ -13,7 +13,7 @@
           "bookings"
         ],
         "summary": "Retrieve bookings with optional user filter",
-        "description": "Returns a list of bookings, optionally filtered by `userId`. When no `userId` is provided, all bookings are returned.",
+        "description": "Retrieves confirmed bookings from the booking-data service with optional user filtering. Results are serialized to expose only client-relevant fields.\n\n**Behavior:**\n- When `userId` is provided: Returns only bookings for that specific user\n- When no `userId` is provided: Returns all bookings in the system (typically admin use)\n\n**Data Transformation:**\nBookings are serialized before being returned, transforming MongoDB fields to cleaner client-facing format:\n- `_id` → `id`\n- `course` → `courseId`\n- `user` → `userId`\n- Internal fields like `__v`, `updatedAt`, and `reservation` are excluded\n\n**Use cases:**\n- Display user's booking history\n- Administrative overview of all bookings\n- Booking confirmation pages",
         "parameters": [
           {
             "in": "query",
@@ -105,7 +105,7 @@
           "bookings"
         ],
         "summary": "Create a new booking",
-        "description": "TODO: Creates a booking from an existing held reservation. Validates the reservation belongs to the user, is in held status, and hasn't expired before creating the booking.",
+        "description": "Converts a held reservation into a confirmed booking after successful payment. Performs comprehensive validation before delegating to the booking-data service for atomic transaction execution.\n\n**Validation Flow:**\n1. Validates all required fields are present (userId, reservationId, transactionId, price)\n2. Retrieves the reservation from booking-data service\n3. Verifies the reservation belongs to the requesting user (403 if mismatch)\n4. Confirms the reservation is in `held` status (409 if not)\n5. Checks the reservation hasn't expired (409 if expired)\n6. Delegates to booking-data service to atomically create booking and complete reservation\n\n**Transaction Safety:**\nThe actual booking creation and reservation completion happen atomically in the booking-data service's transaction, ensuring consistency.\n\n**Response:**\nReturns the newly created booking in serialized format with clean field names and only client-relevant data.\n\n**Error Scenarios:**\n- 400: Missing required fields\n- 403: Reservation doesn't belong to the user\n- 404: Reservation not found\n- 409: Reservation not in held status or has expired\n- 500: Downstream service error",
         "requestBody": {
           "required": true,
           "content": {
@@ -209,7 +209,7 @@
           "reservations"
         ],
         "summary": "Create a new reservation",
-        "description": "TODO: Creates a new reservation by validating course and slot availability. Checks pricing options for the selected number of slots and returns the reservation ID and price to pay.",
+        "description": "Creates a new slot reservation with comprehensive validation before delegating to the booking-data service for atomic slot holding.\n\n**Validation Flow:**\n1. Validates request data (userId, courseId, slotIds array)\n2. Retrieves course details from booking-data service\n3. Validates all requested slot IDs exist in the course\n4. Checks each slot has available capacity (returns 409 if any slot unavailable)\n5. Verifies a pricing option exists for the number of slots selected (returns 400 if no match)\n6. Delegates to booking-data service to atomically create reservation and decrement slot availability\n\n**Reservation Expiration:**\nThe reservation is created with a configurable expiration time (default from bookingSettings). After expiration, a cleanup job will cancel the reservation and restore slot availability.\n\n**Response:**\nReturns a simplified response containing:\n- `reservationId`: The unique identifier for the created reservation\n- `priceToPay`: The price based on the matching pricing option\n\n**Atomicity:**\nSlot availability is decremented atomically with reservation creation in the booking-data service's transaction.\n\n**Error Scenarios:**\n- 400: Invalid data or no pricing option for slot count\n- 404: Course not found\n- 409: One or more slots not available\n- 500: Downstream service error",
         "requestBody": {
           "required": true,
           "content": {
@@ -308,7 +308,7 @@
           "reservations"
         ],
         "summary": "Get reservation details by ID",
-        "description": "Returns reservation details and the price option for the reservation. The requesting user's id must be provided as a query parameter for authorization checks.",
+        "description": "Retrieves reservation details with pricing information, enforcing user authorization checks.\n\n**Authorization:**\nThe endpoint requires the `userId` query parameter and validates that the reservation belongs to the requesting user. Returns 403 if there's a mismatch.\n\n**Processing Flow:**\n1. Validates reservation ID is provided\n2. Retrieves reservation from booking-data service\n3. Verifies reservation belongs to requesting user (403 if not)\n4. Fetches associated course details\n5. Calculates price based on number of slots in reservation\n\n**Response:**\nReturns a simplified response with:\n- `reservationId`: The reservation identifier\n- `priceToPay`: Price calculated from course's pricing options based on slot count\n\n**Use cases:**\n- Retrieve pricing before payment processing\n- Verify reservation details during booking flow\n- Check reservation status for payment confirmation\n\n**Error Scenarios:**\n- 400: Missing reservation ID or no pricing option found\n- 403: Reservation doesn't belong to the requesting user\n- 404: Reservation not found\n- 500: Downstream service error",
         "parameters": [
           {
             "in": "path",
@@ -388,7 +388,7 @@
           "reservations"
         ],
         "summary": "Get active reservation for a user and course",
-        "description": "Returns the most recent active (held and not expired) reservation for a specific user and course combination.",
+        "description": "Retrieves the most recent active reservation for a specific user and course, filtering by status and expiration.\n\n**Query Requirements:**\nBoth `userId` and `courseId` query parameters are required. Returns 400 if either is missing.\n\n**Active Reservation Criteria:**\nA reservation is considered active if:\n1. Status is `held` (not completed, cancelled, or expired)\n2. Expiration timestamp is in the future (not expired)\n\n**Filtering Logic:**\n1. Fetches all reservations for the user and course from booking-data service\n2. Filters client-side for active reservations (held status + not expired)\n3. Returns the most recent active reservation (last in filtered array)\n4. Returns 404 if no active reservations found\n\n**Response:**\nReturns the full reservation object in serialized format with clean field names:\n- MongoDB `_id` → `id`\n- `course` → `courseId`\n- `user` → `userId`\n- Internal fields excluded\n\n**Use cases:**\n- Check if user has pending reservation before creating a new one\n- Resume incomplete booking flow\n- Display active reservation during course selection\n\n**Error Scenarios:**\n- 400: Missing userId or courseId\n- 404: No active reservation found\n- 500: Downstream service error",
         "parameters": [
           {
             "in": "query",
@@ -465,7 +465,7 @@
           "reservations"
         ],
         "summary": "Cancel a reservation",
-        "description": "TODO: Cancels an existing held reservation. Validates that the reservation belongs to the user before canceling.",
+        "description": "Cancels a held reservation with authorization and status validation, delegating to booking-data service for atomic slot restoration.\n\n**Validation Flow:**\n1. Validates reservation ID and userId are provided (400 if missing)\n2. Retrieves reservation from booking-data service\n3. Verifies reservation belongs to requesting user (403 if mismatch)\n4. Confirms reservation is in `held` status (409 if not)\n5. Delegates to booking-data service to atomically cancel reservation and restore slot availability\n\n**Authorization:**\nStrict ownership validation ensures users can only cancel their own reservations. Returns 403 if the reservation's user ID doesn't match the requesting userId.\n\n**Status Validation:**\nOnly reservations in `held` status can be cancelled. Attempting to cancel completed, already-cancelled, or expired reservations returns 409 conflict.\n\n**Atomicity:**\nThe booking-data service handles the actual cancellation in a transaction that:\n- Updates reservation status to `cancelled`\n- Increments available slots by the number that were held\n- Ensures consistency even under concurrent operations\n\n**Success Response:**\nReturns 204 No Content upon successful cancellation.\n\n**Use cases:**\n- User explicitly abandons booking process\n- User selects different slots and needs to cancel previous reservation\n- Timeout handler cancels expired reservations\n\n**Error Scenarios:**\n- 400: Missing reservation ID or userId\n- 403: Reservation belongs to different user\n- 404: Reservation not found\n- 409: Reservation not in held status\n- 500: Downstream service error",
         "parameters": [
           {
             "in": "path",

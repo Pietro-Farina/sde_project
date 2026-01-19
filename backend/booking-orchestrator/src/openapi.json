@@ -11,7 +11,7 @@
         "operationId": "login",
         "tags": ["authentication"],
         "summary": "Initiate OAuth login",
-        "description": "Redirects the user to the OAuth adapter for the specified provider to begin authentication.",
+        "description": "Initiates the OAuth authentication flow by redirecting the user's browser to the OAuth adapter service.\n\n**Authentication Flow Entry Point:**\nThis is the starting point for user authentication. The browser is redirected to the OAuth adapter, which handles the actual OAuth flow with the external provider (Google).\n\n**Provider Validation:**\nCurrently only 'google' is supported as a provider. Any other provider value returns 400 Bad Request.\n\n**Redirect Target:**\nThe user is redirected to: `{OAUTH_ADAPTER_SERVICE_URL}/api/v1/oauth/{provider}/login`\n\n**Next Steps:**\nAfter successful authentication with the provider, the OAuth adapter will redirect the user back to the `/api/v1/auth/complete` endpoint with a nonce parameter.",
         "parameters": [
           {
             "in": "path",
@@ -47,7 +47,7 @@
         "operationId": "completeLogin",
         "tags": ["authentication"],
         "summary": "Complete OAuth login",
-        "description": "Finalizes the OAuth login process after the adapter redirects back. Sets access and refresh token cookies and redirects to frontend.",
+        "description": "Finalizes the OAuth authentication flow after the OAuth adapter redirects the user back with a verified assertion.\n\n**Completion Flow:**\n1. Validates the nonce parameter is present\n2. Retrieves the pending assertion from temporary storage using the nonce\n3. Extracts user information (userId, picture, frontendRedirectUrl)\n4. Generates new access and refresh JWT tokens\n5. Stores the refresh token JTI in an allowlist for validation\n6. Sets httpOnly cookies for both tokens\n7. Redirects user to the frontend application\n\n**Token Details:**\n- Access token: Short-lived (default 15 minutes), used for API authentication\n- Refresh token: Long-lived (default 7 days), used only for token refresh, restricted to /auth/refresh path\n\n**Security:**\nThe nonce serves as a one-time use token that links the OAuth callback to the original login request. Once used, the pending assertion is removed from storage.\n\n**Cookie Configuration:**\n- httpOnly: true (prevents JavaScript access)\n- secure: false (demo environment)\n- sameSite: lax (CSRF protection)\n\n**Error Scenarios:**\n- 400: Missing or invalid nonce, or no pending assertion found (expired or already used)",
         "parameters": [
           {
             "in": "query",
@@ -91,7 +91,7 @@
         "operationId": "logout",
         "tags": ["authentication"],
         "summary": "Logout user",
-        "description": "Revokes the refresh token and clears authentication cookies.",
+        "description": "Logs out the user by revoking their refresh token and clearing authentication cookies.\n\n**Logout Process:**\n1. Reads the refresh_token cookie\n2. If present and valid, extracts the JTI and revokes it from the allowlist\n3. Clears both access_token and refresh_token cookies\n4. Returns 204 No Content\n\n**Token Revocation:**\nRevoking the refresh token JTI prevents it from being used to obtain new access tokens, effectively invalidating the user's session across all clients using that refresh token.\n\n**Cookie Clearing:**\nBoth cookies are cleared from the client's browser, ensuring the access token cannot be used for subsequent requests.\n\n**Graceful Handling:**\nIf the refresh token is invalid or missing, the endpoint still clears the cookies and returns success. This ensures logout always succeeds from the user's perspective.\n\n**Response:**\nReturns 204 No Content with cleared cookies in Set-Cookie headers.",
         "responses": {
           "204": {
             "$ref": "#/components/responses/NoContent"
@@ -104,7 +104,7 @@
         "operationId": "refreshAccessToken",
         "tags": ["authentication"],
         "summary": "Refresh access token",
-        "description": "Uses the refresh token cookie to issue new access and refresh tokens.",
+        "description": "Exchanges a valid refresh token for a new access token and refresh token pair, implementing token rotation for enhanced security.\n\n**Token Rotation Flow:**\n1. Validates refresh_token cookie is present (401 if missing)\n2. Verifies the JWT signature and expiration\n3. Confirms the token type is 'refresh' (403 if not)\n4. Checks the token's JTI is in the allowlist and matches the user (401 if not)\n5. Revokes the old refresh token JTI\n6. Generates new access and refresh tokens with new JTI\n7. Adds new refresh token JTI to allowlist\n8. Sets new cookies with updated tokens\n9. Returns 204 No Content\n\n**Security - Token Rotation:**\nEach refresh operation invalidates the old refresh token and issues a new one. This limits the window of vulnerability if a refresh token is compromised.\n\n**Allowlist Validation:**\nThe refresh token's JTI must be in the allowlist and associated with the correct user. This enables immediate revocation (e.g., on logout) and prevents use of old or stolen tokens.\n\n**Cookie Updates:**\nBoth access_token and refresh_token cookies are updated with new values and reset expiration times.\n\n**Error Scenarios:**\n- 401: No refresh token provided, invalid/expired token, or JTI not in allowlist\n- 403: Token is not a refresh token type",
         "responses": {
           "204": {
             "description": "Tokens refreshed successfully",
@@ -134,7 +134,7 @@
         "operationId": "getAuthenticatedUser",
         "tags": ["authentication"],
         "summary": "Get authenticated user info",
-        "description": "Returns information about the currently authenticated user.",
+        "description": "Returns basic profile information for the currently authenticated user extracted from the access token.\n\n**Authentication Required:**\nRequires valid access_token cookie. The authentication middleware validates the token and populates req.user.\n\n**Response Data:**\n- `authenticated`: Always true (endpoint only accessible with valid token)\n- `userId`: Unique user identifier from OAuth provider (format: 'provider:subject')\n- `picture`: User's profile picture URL from OAuth provider\n\n**Token Source:**\nAll data is extracted from the JWT access token claims, no additional service calls required.\n\n**Use Cases:**\n- Display user profile information in UI\n- Verify authentication status\n- Retrieve user picture for avatar display\n\n**Error Scenarios:**\n- 401: No access token or invalid/expired token",
         "security": [
           {
             "cookieAuth": []
@@ -183,7 +183,7 @@
         "operationId": "oauthAssert",
         "tags": ["authentication"],
         "summary": "Internal OAuth assertion endpoint",
-        "description": "Internal endpoint used by OAuth adapters to submit verified user assertions. Not intended for direct client use.",
+        "description": "Internal service-to-service endpoint used by OAuth adapters to submit verified user assertions after successful OAuth authentication. Not intended for direct client use.\n\n**Architecture Role:**\nThis endpoint is called by the OAuth adapter service after it successfully authenticates a user with an external OAuth provider (Google). It bridges the OAuth adapter and the main orchestrator.\n\n**Assertion Validation:**\n1. Validates all required fields are present (provider, sub, nonce, signature)\n2. Verifies the assertion signature using shared secret\n3. Checks the nonce hasn't been used before (replay protection)\n4. Validates the issued-at time is recent (prevents old assertions)\n\n**Assertion Storage:**\nStores the validated assertion temporarily in-memory with the nonce as key, allowing the `/api/v1/auth/complete` endpoint to retrieve it when the user's browser is redirected back.\n\n**Security:**\n- Signature verification ensures assertion authenticity\n- Nonce prevents replay attacks\n- Time validation ensures freshness\n- Temporary storage (assertions expire)\n\n**Error Scenarios:**\n- 400: Missing required fields or invalid data format\n- 401: Invalid signature or assertion verification failed\n\n**Response:**\n204 No Content on successful assertion storage.",
         "requestBody": {
           "required": true,
           "content": {
@@ -236,7 +236,7 @@
         "operationId": "getAllCourses",
         "tags": ["courses"],
         "summary": "Get all courses",
-        "description": "Returns a list of all available courses.",
+        "description": "Orchestrator endpoint that delegates to the booking-data service to retrieve the complete course catalog.\n\n**Orchestration Pattern:**\nThis endpoint acts as a simple proxy, forwarding the request to the data layer service and returning the response. No business logic or multi-service coordination occurs at this level.\n\n**Service Delegation:**\n- **Downstream Service:** booking-data (data layer)\n- **Operation:** GET /api/v1/courses\n- **Purpose:** Retrieve all courses with slot availability\n\n**Error Handling Strategy:**\n- **4xx errors:** Propagated as-is from booking-data (client error passthrough)\n- **5xx errors:** Translated to 500 Internal Server Error (shields downstream implementation details)\n- **Network errors:** Translated to 500 with generic error response\n\n**Response Structure:**\nStandardized wrapper format: `{ data: { courses: [...] } }`\n\n**Use Cases:**\n- Public course catalog display\n- Availability checking before booking initiation\n- Course browsing without authentication",
         "responses": {
           "200": {
             "description": "Courses retrieved successfully",
@@ -272,7 +272,7 @@
         "operationId": "getCourseById",
         "tags": ["courses"],
         "summary": "Get course by ID",
-        "description": "Returns detailed information about a specific course.",
+        "description": "Orchestrator endpoint that validates input and delegates to booking-data service for single course retrieval.\n\n**Orchestration Responsibilities:**\n1. Input validation (course ID presence)\n2. Delegate to data layer service\n3. Error transformation and propagation\n\n**Service Delegation:**\n- **Downstream Service:** booking-data (data layer)\n- **Operation:** GET /api/v1/courses/:id\n- **Purpose:** Retrieve single course with real-time slot availability\n\n**Error Handling Strategy:**\n- **400 (orchestrator):** Missing course ID parameter\n- **4xx (propagated):** Course not found, invalid ID format from booking-data\n- **5xx:** Translated to 500 to hide downstream implementation\n\n**Response Structure:**\nWrapped format: `{ data: { course: {...} } }`\n\n**Use Cases:**\n- Course detail page rendering\n- Pre-reservation availability verification\n- Slot selection interface data",
         "parameters": [
           {
             "in": "path",
@@ -322,7 +322,7 @@
         "operationId": "getUserBookings",
         "tags": ["bookings"],
         "summary": "Get user bookings",
-        "description": "Returns all bookings for the authenticated user.",
+        "description": "Orchestrator endpoint that extracts authenticated user context and delegates to booking-logic service for booking retrieval.\n\n**Authentication Layer (Orchestrator Responsibility):**\nAccess token validation performed by middleware before delegation. User ID extracted from JWT claims and passed to downstream service.\n\n**Service Delegation:**\n- **Downstream Service:** booking-logic (business layer)\n- **Operation:** GET /api/v1/bookings/user/:userId\n- **Context Injection:** userId from authenticated token\n\n**Orchestration Flow:**\n1. Middleware validates access_token cookie → populates req.user\n2. Orchestrator extracts userId from req.user.id\n3. Delegates to booking-logic with userId parameter\n4. Returns serialized booking data (already transformed by business layer)\n\n**Error Translation:**\n- **401 (orchestrator):** Authentication failure at gateway level\n- **5xx → 502/503/504:** Translates booking-logic errors to appropriate gateway error codes\n\n**Use Cases:**\n- User booking history display\n- Dashboard booking list\n- Account management views",
         "security": [
           {
             "cookieAuth": []
@@ -372,7 +372,7 @@
         "operationId": "startBookingProcess",
         "tags": ["bookings"],
         "summary": "Start booking process",
-        "description": "Initiates the booking process by creating a reservation and payment order.",
+        "description": "Multi-service orchestration endpoint that coordinates reservation creation with payment order initialization.\n\n**Orchestration Pattern:**\nSequential service coordination with conditional logic for reservation creation vs. retrieval.\n\n**Service Choreography:**\n1. **Input Validation (Orchestrator):** Validates courseId, slotIds presence\n2. **Authentication Context (Orchestrator):** Extracts userId from JWT token\n3. **Service Call #1 - Booking-Logic:**\n   - **Conditional:** If `reservationId` provided → retrieve existing reservation\n   - **Otherwise:** Create new pending reservation with slot availability check\n   - **Returns:** reservationId, priceToPay\n4. **Service Call #2 - PayPal Adapter:**\n   - Create payment order with reservation details\n   - **Returns:** orderID for frontend payment flow\n\n**Downstream Services:**\n- **booking-logic (business layer):** Reservation validation and creation/retrieval\n- **paypal-adapter (external integration):** Payment order creation\n\n**Error Handling Strategy:**\n- **4xx from booking-logic:** Propagated as-is (client error passthrough for business rule violations)\n- **5xx from any service:** Translated to 502/503/504 with context-specific error codes\n- **Orchestrator errors:** RESERVATION_CREATION_FAILED, PAYMENT_ORDER_FAILED\n\n**Aggregated Response:**\nCombines data from both services:\n- `reservationId` (from booking-logic)\n- `priceToPay` (from booking-logic)\n- `orderID` (from paypal-adapter)\n\n**Continuation:**\nClient proceeds to `/api/v1/bookings/confirm` after PayPal payment approval.",
         "security": [
           {
             "cookieAuth": []
@@ -482,7 +482,7 @@
         "operationId": "confirmBooking",
         "tags": ["bookings"],
         "summary": "Confirm booking",
-        "description": "Confirms a booking by capturing payment and creating the final booking record. If booking fails after payment capture, automatically initiates a refund.",
+        "description": "Complex orchestration endpoint implementing a distributed saga pattern with compensation logic for payment capture and booking confirmation.\n\n**Saga Orchestration Pattern:**\nCoordinates a two-phase distributed transaction across payment and booking services with automatic rollback on failure.\n\n**Service Choreography:**\n1. **Input Validation (Orchestrator):** orderID, reservationId, userId extraction\n2. **Phase 1 - Payment Capture (paypal-adapter):**\n   - Capture authorized payment\n   - Extract captureId for potential refund\n   - Validate status = COMPLETED\n3. **Phase 2 - Booking Creation (booking-logic):**\n   - Atomically create booking and complete reservation\n   - Validate reservation ownership, expiration, status\n4. **Success:** Return created booking\n5. **Compensation (if Phase 2 fails):**\n   - Automatically trigger refund via paypal-adapter\n   - Track compensation success/failure for error reporting\n\n**Downstream Services:**\n- **paypal-adapter (external integration):** Payment capture and refund operations\n- **booking-logic (business layer):** Atomic booking creation with reservation completion\n\n**Saga Compensation Logic:**\n- **Booking fails after capture → Refund succeeds:** 409 BOOKING_FAILED_PAYMENT_REFUNDED (user not charged)\n- **Booking fails after capture → Refund fails:** 502 BOOKING_FAILED_REFUND_FAILED (manual intervention required)\n\n**Orchestrator Error Handling:**\n- **Pre-capture:** 400 for validation failures, 401 for authentication\n- **Capture failure:** 502/503/504 PAYMENT_CAPTURE_FAILED\n- **Post-capture business failures:** Trigger compensation saga\n- **Idempotency:** Not idempotent - orchestrator does not track saga state across requests\n\n**Critical State Management:**\nThis orchestrator manages critical financial state transitions. Compensation ensures payment refunds occur when booking creation fails, preventing user charges without service delivery.\n\n**Response:**\nSuccessfully created booking in serialized format (transformed by booking-logic service).",
         "security": [
           {
             "cookieAuth": []
@@ -563,7 +563,7 @@
         "operationId": "getPendingReservation",
         "tags": ["bookings"],
         "summary": "Get pending reservation",
-        "description": "Retrieves the active pending reservation for the authenticated user and specified course.",
+        "description": "Orchestrator endpoint that injects authenticated user context and delegates to booking-logic for pending reservation query.\n\n**Orchestration Responsibilities:**\n1. Extract userId from authentication token\n2. Validate courseId from request body\n3. Delegate filtered query to business layer\n4. Propagate business logic errors\n\n**Service Delegation:**\n- **Downstream Service:** booking-logic (business layer)\n- **Operation:** POST /api/v1/bookings/reservations/pending\n- **Context Injection:** userId (from token), courseId (from body)\n- **Business Logic (delegated):** Filtering for held, non-expired, user-owned reservations\n\n**Orchestration Flow:**\n1. **Orchestrator:** Extract userId from JWT token via middleware\n2. **Orchestrator:** Validate courseId presence in request body\n3. **Delegate:** Pass userId + courseId to booking-logic\n4. **Booking-Logic:** Apply business rules (held status, not expired, ownership match)\n5. **Return:** Serialized reservation or 404 if none found\n\n**Error Handling Strategy:**\n- **400 (orchestrator):** Missing courseId validation\n- **401 (orchestrator):** Authentication failure at gateway\n- **4xx (propagated):** Business rule violations from booking-logic\n- **5xx → 502/503/504:** Service availability errors\n\n**Use Cases:**\n- Booking flow resumption after interruption\n- Duplicate reservation prevention\n- Reservation expiration countdown display",
         "security": [
           {
             "cookieAuth": []
@@ -632,7 +632,7 @@
         "operationId": "cancelReservation",
         "tags": ["bookings"],
         "summary": "Cancel reservation",
-        "description": "Cancels a pending reservation for the authenticated user.",
+        "description": "Orchestrator endpoint that enforces authentication and delegates reservation cancellation with authorization to booking-logic service.\n\n**Orchestration Responsibilities:**\n1. Path parameter validation (reservationId)\n2. Authentication context injection (userId from token)\n3. Delegate to business layer for authorization and cancellation\n4. Error propagation to client\n\n**Service Delegation Chain:**\n- **Orchestrator → booking-logic:** Cancellation request with userId and reservationId\n- **Booking-logic → booking-data:** Atomic cancellation and slot restoration (if authorized)\n\n**Orchestration Flow:**\n1. **Orchestrator:** Extract reservationId from path, userId from token\n2. **Delegate to booking-logic:** PATCH /api/v1/bookings/reservations/:reservationId/cancel\n3. **Booking-logic:** Perform authorization (ownership check) and status validation\n4. **Booking-logic → booking-data:** Atomic transaction for status update and slot increment\n5. **Orchestrator:** Propagate 4xx business errors or return 204 on success\n\n**Authorization (Delegated to Business Layer):**\nOwnership validation performed by booking-logic service - ensures users can only cancel their own reservations. Orchestrator passes userId for authorization context.\n\n**Error Handling Strategy:**\n- **400 (orchestrator):** Missing reservationId parameter\n- **401 (orchestrator):** Authentication failure\n- **4xx (propagated):** Authorization failures, business rule violations from booking-logic\n- **5xx → 502/503/504:** Service dependency errors\n\n**Success Response:**\n204 No Content - cancellation completed, no response body.",
         "security": [
           {
             "cookieAuth": []
