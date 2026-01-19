@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router';
 
 const { Title, Text } = Typography;
 
-export const StepPayment = ({ selectedSlots, course, optionSelected, handleStartBooking, activeReservation, currentWorkingReservationId, confirmBooking }) => {
+export const StepPayment = ({ selectedSlots, course, optionSelected, handleStartBooking, activeReservation, currentWorkingReservationId, confirmBooking, handlerError }) => {
 	const [{ isInitial, isPending, isResolved, isRejected }, dispatch] = usePayPalScriptReducer();
 	const navigate = useNavigate();
 	console.log("PAYMENT STEP - activeReservation:", activeReservation);
@@ -81,8 +81,7 @@ export const StepPayment = ({ selectedSlots, course, optionSelected, handleStart
 									console.log("RETURNED orderID:", orderID);
 									return orderID;
 								} catch (err) {
-									console.error("Failed to create order: ", err);
-									throw new Error(`Failed to create order: ${err.message}`);
+									throw new Error(`Failed to create order! ${err.message}`);
 								}
 							}}
 							onApprove={async (data) => {
@@ -91,28 +90,27 @@ export const StepPayment = ({ selectedSlots, course, optionSelected, handleStart
 									console.log("ON APPROVE: orderID:", data.orderID);
 									//
 									const res = await confirmBooking({
-									orderID: data.orderID, 
-									reservationId: currentWorkingReservationId || activeReservation?.id
-									});
-									console.log("Capture result:", res);
-									console.log("Booking:", res.data.booking);
-									const booking = res.data.booking;
+										orderID: data.orderID,
+										reservationId: currentWorkingReservationId || activeReservation?.id
+									}).unwrap();
+									console.log("Booking confirmed:", res);
+									const booking = res.booking;
 
 									message.success("Payment completed successfully!");
 
-									// ✅ REDIRECT TO SUCCESS PAGE
+									// REDIRECT TO SUCCESS PAGE
 									navigate(`/bookings/success/${booking._id}`, {
 										replace: true, // prevents going back to payment
 										state: { booking },
 									});
 								} catch (err) {
-									console.error("Payment capture failed: ", err);
-									throw new Error(`Failed to create order: ${err.message}`);
+									const userMessage = handlerError(err);
+									throw new Error(`Payment capture failed: ${userMessage}`);
 								}
 							}}
 							onError={(err) => {
 								console.error(err);
-								message.error(<div>Payment failed. Please try again:<br />{err.message}</div>);
+								message.error(<div>Payment failed. Please try again:<br />{err.message}</div>, 10);
 							}}
 							onCancel={() => message.info("Payment was canceled.")}
 						/>

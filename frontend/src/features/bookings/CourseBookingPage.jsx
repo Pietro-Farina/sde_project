@@ -37,7 +37,7 @@ export default function CourseBookingPage() {
 		error,
 	} = useGetCourseByIdQuery(id, { skip: !id });
 
-    const { show, hide } = useGlobalSpinner();
+	const { show, hide } = useGlobalSpinner();
 
 	// Check for active reservation on page load
 	const {
@@ -106,13 +106,13 @@ export default function CourseBookingPage() {
 		}
 	] = useConfirmBookingMutation();
 
-    useEffect(() => {
-        if (isLoading) {
-            show();
-        } else {
-            hide();
-        }
-    }, [isLoading]);
+	useEffect(() => {
+		if (isLoading) {
+			show();
+		} else {
+			hide();
+		}
+	}, [isLoading]);
 
 	const optionSelected = useMemo(() => {
 		if (!course) return null;
@@ -134,6 +134,19 @@ export default function CourseBookingPage() {
 		return <Card>Loading...</Card>
 	}
 
+	const handlerError = (error) => {
+		const status = error?.status;
+		const serverData = error?.data; // backend JSON when available
+		const serverCode = serverData?.error?.code;
+		const serverMessage = serverData?.error?.message;
+
+		const userMessage = serverMessage || error?.error || error?.message || 'Unknown error';
+		console.error('Booking failed', { status, serverCode, serverMessage, error });
+		console.error('User message:', userMessage);
+		// rethrow or handle
+		return userMessage;
+	}
+
 	const handleStartBooking = async () => {
 		try {
 			const bookingData = {
@@ -141,27 +154,21 @@ export default function CourseBookingPage() {
 				courseId: course.id,
 				slotIds: selectedSlotsIds,
 			};
-			
+
 			// If there's an active reservation, include it to reuse instead of creating new one
 			if (activeReservation?.id) {
 				bookingData.reservationId = activeReservation.id;
 			}
-			
-			const result = await startBookingProcess(bookingData);
-			
-			// RTK Query will automatically refetch activeReservation due to tag invalidation
-			// Immediately refetch to update activeReservation with the new/updated reservation
-			// await refetchActiveReservation();			
 
-			// Handle result (e.g., proceed to payment)
-			// return order ID
-			console.log("Booking started: ", result);
-			return result.data.orderID;
+			const result = await startBookingProcess(bookingData).unwrap();
+			console.log("UNWRAPPED", result)
+
+			return result.orderID;
 		} catch (err) {
-			console.error("Failed to start booking process: ", err);
-						// Immediately refetch to update activeReservation with the new/updated reservation
+			const userMessage = handlerError(err);
+			// Immediately refetch to update activeReservation with the new/updated reservation
 			await refetchActiveReservation();
-			throw new Error(`Failed to start booking process: ${err.message}`);
+			throw new Error(`Failed to start booking process: ${userMessage}`);
 		}
 	};
 
@@ -248,7 +255,8 @@ export default function CourseBookingPage() {
 				confirmBooking={confirmBooking}
 				activeReservation={activeReservation}
 				currentWorkingReservationId={currentWorkingReservationId}
-				/>}
+				handlerError={handlerError}
+			/>}
 
 			{/* Sticky / bottom guide */}
 			<SelectionGuide
