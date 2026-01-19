@@ -6,12 +6,12 @@
     "version": "1.0.0"
   },
   "paths": {
-    "/api/v1/google/login": {
+    "/api/v1/oauth/google/login": {
       "get": {
         "operationId": "startGoogleLogin",
         "tags": ["authentication"],
         "summary": "Initiate Google OAuth login",
-        "description": "Adapter entry point that initiates the OAuth 2.0 authorization code flow by redirecting the user's browser to Google's consent screen.\n\n**Adapter Pattern Role:**\nAdapts internal authentication request to Google's OAuth 2.0 protocol requirements.\n\n**External Service Integration:**\n- **Provider:** Google OAuth 2.0\n- **Protocol:** OAuth 2.0 Authorization Code Flow\n- **Redirect Target:** Google OAuth authorization endpoint\n\n**Adapter Responsibilities:**\n1. Generate OAuth state parameter for CSRF protection\n2. Construct Google authorization URL with required parameters (client_id, redirect_uri, scope, state)\n3. Redirect user's browser to Google consent screen\n\n**OAuth Parameters:**\n- **scope:** profile, email (requests user profile and email access)\n- **response_type:** code (authorization code flow)\n- **redirect_uri:** This adapter's callback endpoint\n\n**Flow Continuation:**\nAfter user consent, Google redirects back to `/api/v1/google/callback` with authorization code.",
+        "description": "Adapter entry point that initiates the OAuth 2.0 authorization code flow by redirecting the user's browser to Google's consent screen.\n\n**Adapter Pattern Role:**\nAdapts internal authentication request to Google's OAuth 2.0 protocol requirements.\n\n**External Service Integration:**\n- **Provider:** Google OAuth 2.0\n- **Protocol:** OAuth 2.0 Authorization Code Flow\n- **Redirect Target:** Google OAuth authorization endpoint\n\n**Adapter Responsibilities:**\n1. Generate OAuth state parameter for CSRF protection\n2. Construct Google authorization URL with required parameters (client_id, redirect_uri, scope, state)\n3. Redirect user's browser to Google consent screen\n\n**OAuth Parameters:**\n- **scope:** profile, email (requests user profile and email access)\n- **response_type:** code (authorization code flow)\n- **redirect_uri:** This adapter's callback endpoint\n\n**Flow Continuation:**\nAfter user consent, Google redirects back to `/api/v1/oauth/google/callback` with authorization code.",
         "parameters": [],
         "responses": {
           "302": {
@@ -28,7 +28,7 @@
         }
       }
     },
-    "/api/v1/google/callback": {
+    "/api/v1/oauth/google/callback": {
       "get": {
         "operationId": "googleCallback",
         "tags": ["authentication"],
