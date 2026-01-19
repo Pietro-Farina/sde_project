@@ -20,7 +20,7 @@ export const coursesApiSlice = apiSlice.injectEndpoints({
             }),
             transformResponse: (responseData) => {
                 console.log(responseData)
-                const loadedCourses = responseData.data.map((course) => {
+                const loadedCourses = responseData.data.courses.map((course) => {
                     course.id = course._id;
                     return course;
                 });

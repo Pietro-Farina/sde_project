@@ -11,9 +11,9 @@ function requireAuth(req, res, next) {
 
     try {
         const payload = verifyToken(access);
-        if (payload.type !== "access") return res.status(403).json({
+        if (payload.type !== "access") return res.status(401).json({
             error: {
-                code: "FORBIDDEN",
+                code: "UNAUTHENTICATEDs",
                 message: "Access Denied.",
             }
         });

@@ -107,7 +107,7 @@ const confirmBooking = asyncHandler(async (req, res) => {
     try {
         // If bookings is successful, I confirm the booking
         // Can throw: 400, 403, 404, 409, 5xx
-        const bookingResult = await businessServiceClient.createBooking({
+        const { booking } = await businessServiceClient.createBooking({
             userId,
             reservationId,
             transactionId: orderID,
@@ -116,7 +116,7 @@ const confirmBooking = asyncHandler(async (req, res) => {
 
         return res.status(201).json({
             data: {
-                booking: bookingResult
+                booking
             }
         });
     } catch (error) {
@@ -156,13 +156,15 @@ const getPendingReservation = asyncHandler(async (req, res) => {
 
     try {
         // Can throw: 400, 404, 5xx
-        const result = await businessServiceClient.getPendingReservation({
+        const { reservation } = await businessServiceClient.getPendingReservation({
             userId,
             courseId,
         });
-        console.log("Fetched pending reservation:", result._id);
+        console.log("Fetched pending reservation:", reservation.id);
         res.status(200).json({
-            data: result,
+            data: {
+                reservation
+            },
         });
     } catch (error) {
         if (isNormalizedDownstreamError(error)) {
@@ -220,10 +222,12 @@ const getUserBookings = asyncHandler(async (req, res) => {
 
     try {
         // Can throw: 5xx
-        const result = await businessServiceClient.getUserBookings(userId);
+        const { bookings } = await businessServiceClient.getUserBookings(userId);
 
         res.status(200).json({
-            data: result,
+            data: {
+                bookings
+            },
         });
     } catch (error) {
         return translateDependencyError(res, error, "USER_BOOKINGS_FETCH_FAILED");

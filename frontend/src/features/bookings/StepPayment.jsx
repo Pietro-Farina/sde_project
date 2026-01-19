@@ -99,7 +99,7 @@ export const StepPayment = ({ selectedSlots, course, optionSelected, handleStart
 									message.success("Payment completed successfully!");
 
 									// REDIRECT TO SUCCESS PAGE
-									navigate(`/bookings/success/${booking._id}`, {
+									navigate(`/bookings/success/${booking.id}`, {
 										replace: true, // prevents going back to payment
 										state: { booking },
 									});

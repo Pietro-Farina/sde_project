@@ -24,9 +24,7 @@ export default function CourseBookingPage() {
 
 	// id corso
 	const { id } = useParams();
-	const userId = "648a1f4e2f8fb814c8d6f9b1"; // TODO: get from auth
 
-	console.log('User ID:', userId);
 	console.log('Course ID:', id);
 
 	const {
@@ -47,7 +45,7 @@ export default function CourseBookingPage() {
 		isError: activeReservationIsError,
 		error: activeReservationError,
 		refetch: refetchActiveReservation,
-	} = useGetActiveReservationQuery({ userId, courseId: id }, { skip: !userId || !id });
+	} = useGetActiveReservationQuery({ courseId: id }, { skip: !id });
 
 	const [
 		cancelActiveReservation,
@@ -150,7 +148,6 @@ export default function CourseBookingPage() {
 	const handleStartBooking = async () => {
 		try {
 			const bookingData = {
-				userId,
 				courseId: course.id,
 				slotIds: selectedSlotsIds,
 			};

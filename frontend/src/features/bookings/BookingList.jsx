@@ -104,22 +104,22 @@ const BookingList = () => {
 	const columns = [
 		{
 			title: "Booking",
-			dataIndex: "_id",
+			dataIndex: "id",
 			key: "id",
 			responsive: ["md"], // hide on mobile
 		},
 		{
 			title: "Course",
-			dataIndex: "course",
-			key: "course",
+			dataIndex: "courseId",
+			key: "courseId",
 			width: 200,
 			ellipsis: true,
 			render: (courseId) => coursesMap[courseId]?.name || courseId,
 		},
 		{
 			title: "Customer",
-			dataIndex: "user",
-			key: "user",
+			dataIndex: "userId",
+			key: "userId",
 			responsive: ["xl"], // hide on mobile
 		},
 		{
@@ -159,7 +159,7 @@ const BookingList = () => {
 			responsive: ["xl"], // desktop only
 			render: (slotIds, record) => {
 				if (!slotIds || slotIds.length === 0) return '-';
-				const course = coursesMap[record.course];
+				const course = coursesMap[record.courseId];
 				if (!course?.slots) return '-';
 				
 				// Find the actual slot details from the course
@@ -208,7 +208,7 @@ const BookingList = () => {
 				<Table
 					columns={columns}
 					dataSource={tableSource}
-					rowKey="_id"
+					rowKey="id"
 					expandable={
 						(isMobile || isTablet) && {
 							expandedRowRender: (record) => (
@@ -237,10 +237,10 @@ const BookingList = () => {
 
 									<div className="booking-card">
 										<div>
-										<strong>Booking:</strong> {record._id}
+										<strong>Booking:</strong> {record.id}
 									</div>
 									<div>
-										<strong>Course:</strong> {coursesMap[record.course]?.name || record.course}
+										<strong>Course:</strong> {coursesMap[record.courseId]?.name || record.courseId}
 									</div>
 									<div>
 										<strong>Date:</strong> {formatDate(record.createdAt)}
@@ -259,7 +259,7 @@ const BookingList = () => {
 									<div style={{ marginTop: '8px' }}>
 										<strong>Slots:</strong>
 										{record.slots && record.slots.length > 0 ? (() => {
-											const course = coursesMap[record.course];
+											const course = coursesMap[record.courseId];
 											if (!course?.slots) return ' -';
 											
 											const bookingSlots = record.slots.map(slotId => 

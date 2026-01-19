@@ -20,10 +20,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
             }),
             transformResponse: (responseData) => {
                 console.log(responseData.data)
-                const loadedBookings = responseData.data.bookings.map((booking) => {
-                    booking.id = booking._id;
-                    return booking;
-                });
+                const loadedBookings = responseData.data.bookings
                 return bookingsAdapter.setAll(initialState, loadedBookings);
             },
             providesTags: (result, error, arg) => {
@@ -92,8 +89,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
                 if (meta?.response?.status === 404 || !responseData?.data) {
                     return null;
                 }
-                const activeReservation = { ...responseData.data, id: responseData.data._id };
-                delete activeReservation._id;
+                const activeReservation = responseData.data.reservation;
                 return activeReservation;
             },
             providesTags: (result, error, arg) => {

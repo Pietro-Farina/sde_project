@@ -1,6 +1,7 @@
 const dataServiceClient = require('../clients/dataServiceClient');
 const asyncHandler = require('express-async-handler')
 const bookingSettings = require('../config/bookingSettings');
+const { serializeReservation, serializeBooking, serializeBookings } = require('../utils/serializer');
 
 // Reservations
 /**
@@ -114,7 +115,9 @@ const getActiveCourseReservationForUser = asyncHandler(async (req, res) => {
     const lastReservation = activeReservations[activeReservations.length - 1];
 
     res.status(200).json({
-        data: lastReservation
+        data: {
+            reservation: serializeReservation(lastReservation)
+        }
     });
 });
 
@@ -281,7 +284,9 @@ const createBooking = asyncHandler(async (req, res) => {
     });
 
     return res.status(201).json({
-        data: newBooking
+        data: {
+            booking: serializeBooking(newBooking)
+        }
     });
 });
 
@@ -298,7 +303,7 @@ const getBookings = asyncHandler(async (req, res) => {
     console.log("Bookings retrieved:", bookings.length);
     return res.status(200).json({
         data: {
-            bookings
+            bookings: serializeBookings(bookings)
         }
     });
 });

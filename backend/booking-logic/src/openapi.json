@@ -54,25 +54,21 @@
                       "data": {
                         "bookings": [
                           {
-                            "_id": "69642e1f21d2db02c99b9aec",
-                            "course": "695ba111b2e63b75bee66279",
-                            "user": "648a1f4e2f8fb814c8d6f9b1",
-                            "reservation": "69642e1921d2db02c99b9ae8",
+                            "id": "69642e1f21d2db02c99b9aec",
+                            "courseId": "695ba111b2e63b75bee66279",
+                            "userId": "648a1f4e2f8fb814c8d6f9b1",
                             "slots": [
                               "695ba111b2e63b75bee6627b"
                             ],
                             "status": "confirmed",
                             "transactionId": "6KT41896LL345210G",
                             "price": "49.00",
-                            "createdAt": "2026-01-11T23:11:27.530Z",
-                            "updatedAt": "2026-01-11T23:11:27.530Z",
-                            "__v": 0
+                            "createdAt": "2026-01-11T23:11:27.530Z"
                           },
                           {
-                            "_id": "6969609fe8d3650f299ea570",
-                            "course": "695ba111b2e63b75bee66279",
-                            "user": "648a1f4e2f8fb814c8d6f9b1",
-                            "reservation": "69696094e8d3650f299ea56c",
+                            "id": "6969609fe8d3650f299ea570",
+                            "courseId": "695ba111b2e63b75bee66279",
+                            "userId": "648a1f4e2f8fb814c8d6f9b1",
                             "slots": [
                               "695ba111b2e63b75bee6627b",
                               "695ba111b2e63b75bee6627a"
@@ -80,9 +76,7 @@
                             "status": "confirmed",
                             "transactionId": "6MC33684BA3458225",
                             "price": "89.00",
-                            "createdAt": "2026-01-15T21:48:15.941Z",
-                            "updatedAt": "2026-01-15T21:48:15.941Z",
-                            "__v": 0
+                            "createdAt": "2026-01-15T21:48:15.941Z"
                           }
                         ]
                       }
@@ -171,19 +165,18 @@
                     "summary": "Example booking creation response",
                     "value": {
                       "data": {
-                        "course": "695ba111b2e63b75bee66284",
-                        "user": "TEST_USER_12345",
-                        "reservation": "696b690186faaabbfded290e",
-                        "slots": [
-                          "695ba111b2e63b75bee66286"
-                        ],
-                        "status": "confirmed",
-                        "transactionId": "52V73452E9342521J",
-                        "price": "79.00",
-                        "_id": "696b695386faaabbfded2912",
-                        "createdAt": "2026-01-17T10:49:55.591Z",
-                        "updatedAt": "2026-01-17T10:49:55.591Z",
-                        "__v": 0
+                        "booking": {
+                          "id": "696b695386faaabbfded2912",
+                          "courseId": "695ba111b2e63b75bee66284",
+                          "userId": "TEST_USER_12345",
+                          "slots": [
+                            "695ba111b2e63b75bee66286"
+                          ],
+                          "status": "confirmed",
+                          "transactionId": "52V73452E9342521J",
+                          "price": "79.00",
+                          "createdAt": "2026-01-17T10:49:55.591Z"
+                        }
                       }
                     }
                   }
@@ -436,17 +429,16 @@
                     "summary": "Example active reservation retrieval",
                     "value": {
                       "data": {
-                        "_id": "696b69fd86faaabbfded291e",
-                        "course": "695ba111b2e63b75bee66284",
-                        "user": "TEST_USER_12345",
-                        "slots": [
-                          "695ba111b2e63b75bee66286"
-                        ],
-                        "status": "held",
-                        "expiration": "2026-01-17T11:07:45.157Z",
-                        "createdAt": "2026-01-17T10:52:45.158Z",
-                        "updatedAt": "2026-01-17T10:52:45.158Z",
-                        "__v": 0
+                        "reservation": {
+                          "id": "696b69fd86faaabbfded291e",
+                          "courseId": "695ba111b2e63b75bee66284",
+                          "userId": "TEST_USER_12345",
+                          "slots": [
+                            "695ba111b2e63b75bee66286"
+                          ],
+                          "status": "held",
+                          "expiration": "2026-01-17T11:07:45.157Z"
+                        }
                       }
                     }
                   }
@@ -707,16 +699,13 @@
       "Booking": {
         "type": "object",
         "properties": {
-          "_id": {
+          "id": {
             "type": "string"
           },
-          "course": {
+          "courseId": {
             "type": "string"
           },
-          "user": {
-            "type": "string"
-          },
-          "reservation": {
+          "userId": {
             "type": "string"
           },
           "slots": {
@@ -739,23 +728,21 @@
             "type": "string"
           },
           "createdAt": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
       "Reservation": {
         "type": "object",
         "properties": {
-          "_id": {
+          "id": {
             "type": "string"
           },
-          "course": {
+          "courseId": {
             "type": "string"
           },
-          "user": {
+          "userId": {
             "type": "string"
           },
           "slots": {
@@ -774,13 +761,8 @@
             ]
           },
           "expiration": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

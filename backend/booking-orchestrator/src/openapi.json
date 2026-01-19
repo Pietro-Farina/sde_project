@@ -246,9 +246,14 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Course"
+                      "type": "object",
+                      "properties": {
+                        "courses": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Course"
+                          }
+                        }
                       }
                     }
                   }
@@ -589,7 +594,12 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/Reservation"
+                      "type": "object",
+                      "properties": {
+                        "reservation": {
+                          "$ref": "#/components/schemas/Reservation"
+                        }
+                      }
                     }
                   }
                 }
@@ -699,6 +709,17 @@
                   }
                 }
               }
+            },
+            "examples": {
+              "badRequestExample": {
+                "summary": "Example bad request response",
+                "value": {
+                  "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "courseId and slotIds are required."
+                  }
+                }
+              }
             }
           }
         }
@@ -719,6 +740,17 @@
                     "message": {
                       "type": "string"
                     }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "unauthorizedExample": {
+                "summary": "Example unauthorized response",
+                "value": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "Access Denied."
                   }
                 }
               }
@@ -745,6 +777,17 @@
                   }
                 }
               }
+            },
+            "examples": {
+              "forbiddenErrorResponse": {
+                "summary": "Example forbidden error response",
+                "value": {
+                  "error": {
+                    "code": "ACCESS_DENIED",
+                    "message": "User do not have permission to access this reservation."
+                  }
+                }
+              }
             }
           }
         }
@@ -765,6 +808,17 @@
                     "message": {
                       "type": "string"
                     }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "notFoundErrorResponse": {
+                "summary": "Example not found error response",
+                "value": {
+                  "error": {
+                    "code": "RESERVATION_NOT_FOUND",
+                    "message": "No active reservation found for the specified user and course."
                   }
                 }
               }
@@ -791,6 +845,17 @@
                   }
                 }
               }
+            },
+            "examples": {
+              "conflictErrorResponse": {
+                "summary": "Example conflict error response",
+                "value": {
+                  "error": {
+                    "code": "RESERVATION_NOT_ACTIVE",
+                    "message": "Reservation is not active"
+                  }
+                }
+              }
             }
           }
         }
@@ -811,6 +876,17 @@
                     "message": {
                       "type": "string"
                     }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "internalServerErrorResponse": {
+                "summary": "Example server error response",
+                "value": {
+                  "error": {
+                    "code": "INTERNAL_SERVER_ERROR",
+                    "message": "An unexpected error occurred while processing the request."
                   }
                 }
               }
@@ -837,6 +913,17 @@
                   }
                 }
               }
+            },
+            "examples": {
+              "badGatewayErrorResponse": {
+                "summary": "Example bad gateway error response",
+                "value": {
+                  "error": {
+                    "code": "DEPENDENCY_ERROR",
+                    "message": "A dependent service failed."
+                  }
+                }
+              }
             }
           }
         }
@@ -860,6 +947,17 @@
                   }
                 }
               }
+            },
+            "examples": {
+              "serviceUnavailableErrorResponse": {
+                "summary": "Example service unavailable error response",
+                "value": {
+                  "error": {
+                    "code": "DEPENDENCY_UNAVAILABLE",
+                    "message": "A dependent service is unavailable."
+                  }
+                }
+              }
             }
           }
         }
@@ -880,6 +978,17 @@
                     "message": {
                       "type": "string"
                     }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "gatewayTimeoutErrorResponse": {
+                "summary": "Example gateway timeout error response",
+                "value": {
+                  "error": {
+                    "code": "DEPENDENCY_TIMEOUT",
+                    "message": "A dependent service timed out."
                   }
                 }
               }
@@ -962,16 +1071,13 @@
       "Booking": {
         "type": "object",
         "properties": {
-          "_id": {
+          "id": {
             "type": "string"
           },
-          "course": {
+          "courseId": {
             "type": "string"
           },
-          "user": {
-            "type": "string"
-          },
-          "reservation": {
+          "userId": {
             "type": "string"
           },
           "slots": {
@@ -993,23 +1099,19 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },
       "Reservation": {
         "type": "object",
         "properties": {
-          "_id": {
+          "id": {
             "type": "string"
           },
-          "course": {
+          "courseId": {
             "type": "string"
           },
-          "user": {
+          "userId": {
             "type": "string"
           },
           "slots": {
@@ -1023,14 +1125,6 @@
             "enum": ["held", "completed", "cancelled", "expired"]
           },
           "expiration": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
             "type": "string",
             "format": "date-time"
           }

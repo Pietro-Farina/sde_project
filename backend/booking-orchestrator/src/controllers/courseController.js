@@ -9,7 +9,7 @@ const getAllCourses = asyncHandler(async (req, res) => {
 	try {
 		const { courses } = await dataServiceClient.getAllCourses();
 
-		res.json({ data: courses });
+		res.json({ data: { courses } });
 	} catch (error) {
 		if (error?.status && error?.body) {
 			return res.status(error.status).json(error.body);

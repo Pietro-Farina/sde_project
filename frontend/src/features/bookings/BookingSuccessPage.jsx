@@ -40,8 +40,8 @@ export const BookingSuccessPage = () => {
         data: course,
         isLoading: isLoadingCourse,
         isError: isErrorCourse,
-    } = useGetCourseByIdQuery(booking?.course, {
-        skip: !booking?.course,
+    } = useGetCourseByIdQuery(booking?.courseId, {
+        skip: !booking?.courseId,
     });
 
     // 4Loading state

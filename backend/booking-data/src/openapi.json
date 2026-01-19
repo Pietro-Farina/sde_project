@@ -803,7 +803,15 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "type": "object"
+                      "type": "object",
+                      "properties": {
+                        "reservation": {
+                          "$ref": "#/components/schemas/Reservation"
+                        }
+                      },
+                      "required": [
+                        "reservation"
+                      ]
                     }
                   },
                   "required": [
@@ -815,21 +823,19 @@
                     "summary": "Example reservation retrieval response",
                     "value": {
                       "data": {
-                        "data": {
-                          "reservation": {
-                            "_id": "695d651ad97543f2ef9b5231",
-                            "course": "695ba111b2e63b75bee6627e",
-                            "user": "648a1f4e2f8fb814c8d6f9b1",
-                            "slots": [
-                              "695ba111b2e63b75bee6627f",
-                              "695ba111b2e63b75bee66280"
-                            ],
-                            "status": "held",
-                            "expiration": "2026-01-06T19:55:10.345Z",
-                            "createdAt": "2026-01-06T19:40:10.351Z",
-                            "updatedAt": "2026-01-07T18:30:01.202Z",
-                            "__v": 0
-                          }
+                        "reservation": {
+                          "_id": "695d651ad97543f2ef9b5231",
+                          "course": "695ba111b2e63b75bee6627e",
+                          "user": "648a1f4e2f8fb814c8d6f9b1",
+                          "slots": [
+                            "695ba111b2e63b75bee6627f",
+                            "695ba111b2e63b75bee66280"
+                          ],
+                          "status": "held",
+                          "expiration": "2026-01-06T19:55:10.345Z",
+                          "createdAt": "2026-01-06T19:40:10.351Z",
+                          "updatedAt": "2026-01-07T18:30:01.202Z",
+                          "__v": 0
                         }
                       }
                     }
@@ -1148,10 +1154,12 @@
             "type": "string"
           },
           "createdAt": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "updatedAt": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "__v": {
             "type": "number"
@@ -1237,10 +1245,12 @@
             "type": "string"
           },
           "createdAt": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "updatedAt": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "__v": {
             "type": "number"
@@ -1283,10 +1293,22 @@
             ]
           },
           "expiration": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "_id": {
             "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "__v": {
+            "type": "number"
           }
         },
         "required": [
