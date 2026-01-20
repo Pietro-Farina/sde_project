@@ -4,6 +4,7 @@ A microservices-based course booking platform with PayPal payment integration an
 
 ## 📋 Table of Contents
 
+- [API Documentation](#api-documentation)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
@@ -12,7 +13,9 @@ A microservices-based course booking platform with PayPal payment integration an
 - [Services Overview](#services-overview)
 - [Environment Configuration](#environment-configuration)
 - [Running the Application](#running-the-application)
-- [API Documentation](#api-documentation)
+
+## API Documentation
+[![API Documentation](https://img.shields.io/badge/API-DOCUMENTATION-blue?style=flat-square)](https://pietro-farina.github.io/sde_project/api-docs.html)
 
 ## Architecture
 
@@ -236,18 +239,6 @@ docker-compose -f docker-compose.dev.yml up
 - **Frontend**: http://localhost:5173 (dev) or http://localhost (prod)
 - **Orchestrator API**: http://localhost:3000
 - **API Documentation**: http://localhost:8080
-
-## API Documentation
-
-Each service exposes OpenAPI/Swagger documentation:
-
-- **Booking Orchestrator**: http://localhost:3000/api-docs
-- **Booking Logic**: http://localhost:3001/api-docs
-- **Booking Data**: http://localhost:3002/api-docs
-- **OAuth Adapter**: http://localhost:3003/api-docs
-- **PayPal Adapter**: http://localhost:3004/api-docs
-
-Centralized documentation is available at: http://localhost:8080
 
 ## 🔍 Key Features
 
