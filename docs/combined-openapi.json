@@ -1,0 +1,3765 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Booking System - Combined API",
+    "version": "1.0.0",
+    "description": "Unified API documentation for all booking system services"
+  },
+  "tags": [
+    {
+      "name": "Booking Orchestrator",
+      "description": "Main orchestration service that coordinates authentication, bookings, and course management"
+    },
+    {
+      "name": "Booking Logic",
+      "description": "Business logic service for managing bookings and reservations"
+    },
+    {
+      "name": "Booking Data",
+      "description": "Data persistence layer for bookings, courses, and reservations"
+    },
+    {
+      "name": "OAuth Adapter",
+      "description": "OAuth authentication adapter service"
+    },
+    {
+      "name": "PayPal Adapter",
+      "description": "PayPal payment integration service"
+    }
+  ],
+  "paths": {
+    "/booking-orchestrator/api/v1/auth/login/{provider}": {
+      "get": {
+        "operationId": "login",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Initiate OAuth login",
+        "description": "Initiates the OAuth authentication flow by redirecting the user's browser to the OAuth adapter service.\n\n**Authentication Flow Entry Point:**\nThis is the starting point for user authentication. The browser is redirected to the OAuth adapter, which handles the actual OAuth flow with the external provider (Google).\n\n**Provider Validation:**\nCurrently only 'google' is supported as a provider. Any other provider value returns 400 Bad Request.\n\n**Redirect Target:**\nThe user is redirected to: `{OAUTH_ADAPTER_SERVICE_URL}/api/v1/oauth/{provider}/login`\n\n**Next Steps:**\nAfter successful authentication with the provider, the OAuth adapter will redirect the user back to the `/api/v1/auth/complete` endpoint with a nonce parameter.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "description": "OAuth provider name (currently only 'google' is supported)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "google"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to OAuth adapter",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "OAuth adapter URL"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadRequest"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/auth/complete": {
+      "get": {
+        "operationId": "completeLogin",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Complete OAuth login",
+        "description": "Finalizes the OAuth authentication flow after the OAuth adapter redirects the user back with a verified assertion.\n\n**Completion Flow:**\n1. Validates the nonce parameter is present\n2. Retrieves the pending assertion from temporary storage using the nonce\n3. Extracts user information (userId, picture, frontendRedirectUrl)\n4. Generates new access and refresh JWT tokens\n5. Stores the refresh token JTI in an allowlist for validation\n6. Sets httpOnly cookies for both tokens\n7. Redirects user to the frontend application\n\n**Token Details:**\n- Access token: Short-lived (default 15 minutes), used for API authentication\n- Refresh token: Long-lived (default 7 days), used only for token refresh, restricted to /auth/refresh path\n\n**Security:**\nThe nonce serves as a one-time use token that links the OAuth callback to the original login request. Once used, the pending assertion is removed from storage.\n\n**Cookie Configuration:**\n- httpOnly: true (prevents JavaScript access)\n- secure: false (demo environment)\n- sameSite: lax (CSRF protection)\n\n**Error Scenarios:**\n- 400: Missing or invalid nonce, or no pending assertion found (expired or already used)",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "nonce",
+            "required": true,
+            "description": "Unique nonce from the OAuth flow",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to frontend with authentication cookies set",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Frontend redirect URL"
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "description": "access_token and refresh_token cookies"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadRequest"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Logout user",
+        "description": "Logs out the user by revoking their refresh token and clearing authentication cookies.\n\n**Logout Process:**\n1. Reads the refresh_token cookie\n2. If present and valid, extracts the JTI and revokes it from the allowlist\n3. Clears both access_token and refresh_token cookies\n4. Returns 204 No Content\n\n**Token Revocation:**\nRevoking the refresh token JTI prevents it from being used to obtain new access tokens, effectively invalidating the user's session across all clients using that refresh token.\n\n**Cookie Clearing:**\nBoth cookies are cleared from the client's browser, ensuring the access token cannot be used for subsequent requests.\n\n**Graceful Handling:**\nIf the refresh token is invalid or missing, the endpoint still clears the cookies and returns success. This ensures logout always succeeds from the user's perspective.\n\n**Response:**\nReturns 204 No Content with cleared cookies in Set-Cookie headers.",
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/BookingOrchestrator_NoContent"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "refreshAccessToken",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Refresh access token",
+        "description": "Exchanges a valid refresh token for a new access token and refresh token pair, implementing token rotation for enhanced security.\n\n**Token Rotation Flow:**\n1. Validates refresh_token cookie is present (401 if missing)\n2. Verifies the JWT signature and expiration\n3. Confirms the token type is 'refresh' (403 if not)\n4. Checks the token's JTI is in the allowlist and matches the user (401 if not)\n5. Revokes the old refresh token JTI\n6. Generates new access and refresh tokens with new JTI\n7. Adds new refresh token JTI to allowlist\n8. Sets new cookies with updated tokens\n9. Returns 204 No Content\n\n**Security - Token Rotation:**\nEach refresh operation invalidates the old refresh token and issues a new one. This limits the window of vulnerability if a refresh token is compromised.\n\n**Allowlist Validation:**\nThe refresh token's JTI must be in the allowlist and associated with the correct user. This enables immediate revocation (e.g., on logout) and prevents use of old or stolen tokens.\n\n**Cookie Updates:**\nBoth access_token and refresh_token cookies are updated with new values and reset expiration times.\n\n**Error Scenarios:**\n- 401: No refresh token provided, invalid/expired token, or JTI not in allowlist\n- 403: Token is not a refresh token type",
+        "responses": {
+          "204": {
+            "description": "Tokens refreshed successfully",
+            "headers": {
+              "Set-Cookie": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "description": "New access_token and refresh_token cookies"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/BookingOrchestrator_Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/BookingOrchestrator_Forbidden"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/auth/me": {
+      "get": {
+        "operationId": "getAuthenticatedUser",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Get authenticated user info",
+        "description": "Returns basic profile information for the currently authenticated user extracted from the access token.\n\n**Authentication Required:**\nRequires valid access_token cookie. The authentication middleware validates the token and populates req.user.\n\n**Response Data:**\n- `authenticated`: Always true (endpoint only accessible with valid token)\n- `userId`: Unique user identifier from OAuth provider (format: 'provider:subject')\n- `picture`: User's profile picture URL from OAuth provider\n\n**Token Source:**\nAll data is extracted from the JWT access token claims, no additional service calls required.\n\n**Use Cases:**\n- Display user profile information in UI\n- Verify authentication status\n- Retrieve user picture for avatar display\n\n**Error Scenarios:**\n- 401: No access token or invalid/expired token",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User information retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "authenticated": {
+                      "type": "boolean"
+                    },
+                    "userId": {
+                      "type": "string"
+                    },
+                    "picture": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "examples": {
+                  "meResponse": {
+                    "summary": "Example user info response",
+                    "value": {
+                      "authenticated": true,
+                      "userId": "google:123456789",
+                      "picture": "https://example.com/photo.jpg"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/BookingOrchestrator_Unauthorized"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/auth/internal/assert": {
+      "post": {
+        "operationId": "oauthAssert",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Internal OAuth assertion endpoint",
+        "description": "Internal service-to-service endpoint used by OAuth adapters to submit verified user assertions after successful OAuth authentication. Not intended for direct client use.\n\n**Architecture Role:**\nThis endpoint is called by the OAuth adapter service after it successfully authenticates a user with an external OAuth provider (Google). It bridges the OAuth adapter and the main orchestrator.\n\n**Assertion Validation:**\n1. Validates all required fields are present (provider, sub, nonce, signature)\n2. Verifies the assertion signature using shared secret\n3. Checks the nonce hasn't been used before (replay protection)\n4. Validates the issued-at time is recent (prevents old assertions)\n\n**Assertion Storage:**\nStores the validated assertion temporarily in-memory with the nonce as key, allowing the `/api/v1/auth/complete` endpoint to retrieve it when the user's browser is redirected back.\n\n**Security:**\n- Signature verification ensures assertion authenticity\n- Nonce prevents replay attacks\n- Time validation ensures freshness\n- Temporary storage (assertions expire)\n\n**Error Scenarios:**\n- 400: Missing required fields or invalid data format\n- 401: Invalid signature or assertion verification failed\n\n**Response:**\n204 No Content on successful assertion storage.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string"
+                  },
+                  "sub": {
+                    "type": "string"
+                  },
+                  "iat": {
+                    "type": "integer"
+                  },
+                  "nonce": {
+                    "type": "string"
+                  },
+                  "signature": {
+                    "type": "string"
+                  },
+                  "picture": {
+                    "type": "string"
+                  },
+                  "frontendRedirectUrl": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "sub",
+                  "nonce",
+                  "signature"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/BookingOrchestrator_NoContent"
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/BookingOrchestrator_Unauthorized"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/courses": {
+      "get": {
+        "operationId": "getAllCourses",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Get all courses",
+        "description": "Orchestrator endpoint that delegates to the booking-data service to retrieve the complete course catalog.\n\n**Orchestration Pattern:**\nThis endpoint acts as a simple proxy, forwarding the request to the data layer service and returning the response. No business logic or multi-service coordination occurs at this level.\n\n**Service Delegation:**\n- **Downstream Service:** booking-data (data layer)\n- **Operation:** GET /api/v1/courses\n- **Purpose:** Retrieve all courses with slot availability\n\n**Error Handling Strategy:**\n- **4xx errors:** Propagated as-is from booking-data (client error passthrough)\n- **5xx errors:** Translated to 500 Internal Server Error (shields downstream implementation details)\n- **Network errors:** Translated to 500 with generic error response\n\n**Response Structure:**\nStandardized wrapper format: `{ data: { courses: [...] } }`\n\n**Use Cases:**\n- Public course catalog display\n- Availability checking before booking initiation\n- Course browsing without authentication",
+        "responses": {
+          "200": {
+            "description": "Courses retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "courses": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/BookingOrchestrator_Course"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingOrchestrator_InternalServerError"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/courses/{id}": {
+      "get": {
+        "operationId": "getCourseById",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Get course by ID",
+        "description": "Orchestrator endpoint that validates input and delegates to booking-data service for single course retrieval.\n\n**Orchestration Responsibilities:**\n1. Input validation (course ID presence)\n2. Delegate to data layer service\n3. Error transformation and propagation\n\n**Service Delegation:**\n- **Downstream Service:** booking-data (data layer)\n- **Operation:** GET /api/v1/courses/:id\n- **Purpose:** Retrieve single course with real-time slot availability\n\n**Error Handling Strategy:**\n- **400 (orchestrator):** Missing course ID parameter\n- **4xx (propagated):** Course not found, invalid ID format from booking-data\n- **5xx:** Translated to 500 to hide downstream implementation\n\n**Response Structure:**\nWrapped format: `{ data: { course: {...} } }`\n\n**Use Cases:**\n- Course detail page rendering\n- Pre-reservation availability verification\n- Slot selection interface data",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Course ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Course retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "course": {
+                          "$ref": "#/components/schemas/BookingOrchestrator_Course"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingOrchestrator_NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingOrchestrator_InternalServerError"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/bookings": {
+      "get": {
+        "operationId": "getUserBookings",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Get user bookings",
+        "description": "Orchestrator endpoint that extracts authenticated user context and delegates to booking-logic service for booking retrieval.\n\n**Authentication Layer (Orchestrator Responsibility):**\nAccess token validation performed by middleware before delegation. User ID extracted from JWT claims and passed to downstream service.\n\n**Service Delegation:**\n- **Downstream Service:** booking-logic (business layer)\n- **Operation:** GET /api/v1/bookings/user/:userId\n- **Context Injection:** userId from authenticated token\n\n**Orchestration Flow:**\n1. Middleware validates access_token cookie → populates req.user\n2. Orchestrator extracts userId from req.user.id\n3. Delegates to booking-logic with userId parameter\n4. Returns serialized booking data (already transformed by business layer)\n\n**Error Translation:**\n- **401 (orchestrator):** Authentication failure at gateway level\n- **5xx → 502/503/504:** Translates booking-logic errors to appropriate gateway error codes\n\n**Use Cases:**\n- User booking history display\n- Dashboard booking list\n- Account management views",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bookings retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookings": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/BookingOrchestrator_Booking"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/BookingOrchestrator_Unauthorized"
+          },
+          "502": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadGateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/BookingOrchestrator_ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/BookingOrchestrator_GatewayTimeout"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/bookings/start": {
+      "post": {
+        "operationId": "startBookingProcess",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Start booking process",
+        "description": "Multi-service orchestration endpoint that coordinates reservation creation with payment order initialization.\n\n**Orchestration Pattern:**\nSequential service coordination with conditional logic for reservation creation vs. retrieval.\n\n**Service Choreography:**\n1. **Input Validation (Orchestrator):** Validates courseId, slotIds presence\n2. **Authentication Context (Orchestrator):** Extracts userId from JWT token\n3. **Service Call #1 - Booking-Logic:**\n   - **Conditional:** If `reservationId` provided → retrieve existing reservation\n   - **Otherwise:** Create new pending reservation with slot availability check\n   - **Returns:** reservationId, priceToPay\n4. **Service Call #2 - PayPal Adapter:**\n   - Create payment order with reservation details\n   - **Returns:** orderID for frontend payment flow\n\n**Downstream Services:**\n- **booking-logic (business layer):** Reservation validation and creation/retrieval\n- **paypal-adapter (external integration):** Payment order creation\n\n**Error Handling Strategy:**\n- **4xx from booking-logic:** Propagated as-is (client error passthrough for business rule violations)\n- **5xx from any service:** Translated to 502/503/504 with context-specific error codes\n- **Orchestrator errors:** RESERVATION_CREATION_FAILED, PAYMENT_ORDER_FAILED\n\n**Aggregated Response:**\nCombines data from both services:\n- `reservationId` (from booking-logic)\n- `priceToPay` (from booking-logic)\n- `orderID` (from paypal-adapter)\n\n**Continuation:**\nClient proceeds to `/api/v1/bookings/confirm` after PayPal payment approval.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "courseId": {
+                    "type": "string"
+                  },
+                  "slotIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "reservationId": {
+                    "type": "string",
+                    "description": "Optional existing reservation id to reuse instead of creating a new one"
+                  }
+                },
+                "required": [
+                  "courseId",
+                  "slotIds"
+                ]
+              },
+              "examples": {
+                "startBookingRequest": {
+                  "summary": "Example start booking request",
+                  "value": {
+                    "courseId": "695ba111b2e63b75bee66279",
+                    "slotIds": [
+                      "695ba111b2e63b75bee6627b"
+                    ],
+                    "reservationId": "696prev1234567890abcdef"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking process started successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservationId": {
+                          "type": "string"
+                        },
+                        "priceToPay": {
+                          "type": "string"
+                        },
+                        "orderID": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "startBookingResponse": {
+                    "summary": "Example start booking response",
+                    "value": {
+                      "data": {
+                        "reservationId": "6969808214d2f13caa1e5f16",
+                        "priceToPay": "49.00",
+                        "orderID": "8VX12345AB6789012"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/BookingOrchestrator_Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingOrchestrator_NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/BookingOrchestrator_Conflict"
+          },
+          "502": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadGateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/BookingOrchestrator_ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/BookingOrchestrator_GatewayTimeout"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/bookings/confirm": {
+      "post": {
+        "operationId": "confirmBooking",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Confirm booking",
+        "description": "Complex orchestration endpoint implementing a distributed saga pattern with compensation logic for payment capture and booking confirmation.\n\n**Saga Orchestration Pattern:**\nCoordinates a two-phase distributed transaction across payment and booking services with automatic rollback on failure.\n\n**Service Choreography:**\n1. **Input Validation (Orchestrator):** orderID, reservationId, userId extraction\n2. **Phase 1 - Payment Capture (paypal-adapter):**\n   - Capture authorized payment\n   - Extract captureId for potential refund\n   - Validate status = COMPLETED\n3. **Phase 2 - Booking Creation (booking-logic):**\n   - Atomically create booking and complete reservation\n   - Validate reservation ownership, expiration, status\n4. **Success:** Return created booking\n5. **Compensation (if Phase 2 fails):**\n   - Automatically trigger refund via paypal-adapter\n   - Track compensation success/failure for error reporting\n\n**Downstream Services:**\n- **paypal-adapter (external integration):** Payment capture and refund operations\n- **booking-logic (business layer):** Atomic booking creation with reservation completion\n\n**Saga Compensation Logic:**\n- **Booking fails after capture → Refund succeeds:** 409 BOOKING_FAILED_PAYMENT_REFUNDED (user not charged)\n- **Booking fails after capture → Refund fails:** 502 BOOKING_FAILED_REFUND_FAILED (manual intervention required)\n\n**Orchestrator Error Handling:**\n- **Pre-capture:** 400 for validation failures, 401 for authentication\n- **Capture failure:** 502/503/504 PAYMENT_CAPTURE_FAILED\n- **Post-capture business failures:** Trigger compensation saga\n- **Idempotency:** Not idempotent - orchestrator does not track saga state across requests\n\n**Critical State Management:**\nThis orchestrator manages critical financial state transitions. Compensation ensures payment refunds occur when booking creation fails, preventing user charges without service delivery.\n\n**Response:**\nSuccessfully created booking in serialized format (transformed by booking-logic service).",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "orderID": {
+                    "type": "string"
+                  },
+                  "reservationId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "orderID",
+                  "reservationId"
+                ]
+              },
+              "examples": {
+                "confirmBookingRequest": {
+                  "summary": "Example confirm booking request",
+                  "value": {
+                    "orderID": "8VX12345AB6789012",
+                    "reservationId": "6969808214d2f13caa1e5f16"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking confirmed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "booking": {
+                          "$ref": "#/components/schemas/BookingOrchestrator_Booking"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/BookingOrchestrator_Unauthorized"
+          },
+          "409": {
+            "$ref": "#/components/responses/BookingOrchestrator_Conflict"
+          },
+          "502": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadGateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/BookingOrchestrator_ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/BookingOrchestrator_GatewayTimeout"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/bookings/reservations/pending": {
+      "post": {
+        "operationId": "getPendingReservation",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Get pending reservation",
+        "description": "Orchestrator endpoint that injects authenticated user context and delegates to booking-logic for pending reservation query.\n\n**Orchestration Responsibilities:**\n1. Extract userId from authentication token\n2. Validate courseId from request body\n3. Delegate filtered query to business layer\n4. Propagate business logic errors\n\n**Service Delegation:**\n- **Downstream Service:** booking-logic (business layer)\n- **Operation:** POST /api/v1/bookings/reservations/pending\n- **Context Injection:** userId (from token), courseId (from body)\n- **Business Logic (delegated):** Filtering for held, non-expired, user-owned reservations\n\n**Orchestration Flow:**\n1. **Orchestrator:** Extract userId from JWT token via middleware\n2. **Orchestrator:** Validate courseId presence in request body\n3. **Delegate:** Pass userId + courseId to booking-logic\n4. **Booking-Logic:** Apply business rules (held status, not expired, ownership match)\n5. **Return:** Serialized reservation or 404 if none found\n\n**Error Handling Strategy:**\n- **400 (orchestrator):** Missing courseId validation\n- **401 (orchestrator):** Authentication failure at gateway\n- **4xx (propagated):** Business rule violations from booking-logic\n- **5xx → 502/503/504:** Service availability errors\n\n**Use Cases:**\n- Booking flow resumption after interruption\n- Duplicate reservation prevention\n- Reservation expiration countdown display",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "courseId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "courseId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pending reservation retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservation": {
+                          "$ref": "#/components/schemas/BookingOrchestrator_Reservation"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/BookingOrchestrator_Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingOrchestrator_NotFound"
+          },
+          "502": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadGateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/BookingOrchestrator_ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/BookingOrchestrator_GatewayTimeout"
+          }
+        }
+      }
+    },
+    "/booking-orchestrator/api/v1/bookings/reservations/{reservationId}/cancel": {
+      "patch": {
+        "operationId": "cancelReservation",
+        "tags": [
+          "Booking Orchestrator"
+        ],
+        "summary": "Cancel reservation",
+        "description": "Orchestrator endpoint that enforces authentication and delegates reservation cancellation with authorization to booking-logic service.\n\n**Orchestration Responsibilities:**\n1. Path parameter validation (reservationId)\n2. Authentication context injection (userId from token)\n3. Delegate to business layer for authorization and cancellation\n4. Error propagation to client\n\n**Service Delegation Chain:**\n- **Orchestrator → booking-logic:** Cancellation request with userId and reservationId\n- **Booking-logic → booking-data:** Atomic cancellation and slot restoration (if authorized)\n\n**Orchestration Flow:**\n1. **Orchestrator:** Extract reservationId from path, userId from token\n2. **Delegate to booking-logic:** PATCH /api/v1/bookings/reservations/:reservationId/cancel\n3. **Booking-logic:** Perform authorization (ownership check) and status validation\n4. **Booking-logic → booking-data:** Atomic transaction for status update and slot increment\n5. **Orchestrator:** Propagate 4xx business errors or return 204 on success\n\n**Authorization (Delegated to Business Layer):**\nOwnership validation performed by booking-logic service - ensures users can only cancel their own reservations. Orchestrator passes userId for authorization context.\n\n**Error Handling Strategy:**\n- **400 (orchestrator):** Missing reservationId parameter\n- **401 (orchestrator):** Authentication failure\n- **4xx (propagated):** Authorization failures, business rule violations from booking-logic\n- **5xx → 502/503/504:** Service dependency errors\n\n**Success Response:**\n204 No Content - cancellation completed, no response body.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservationId",
+            "required": true,
+            "description": "Reservation ID to cancel",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/BookingOrchestrator_NoContent"
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/BookingOrchestrator_Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/BookingOrchestrator_Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingOrchestrator_NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/BookingOrchestrator_Conflict"
+          },
+          "502": {
+            "$ref": "#/components/responses/BookingOrchestrator_BadGateway"
+          },
+          "503": {
+            "$ref": "#/components/responses/BookingOrchestrator_ServiceUnavailable"
+          },
+          "504": {
+            "$ref": "#/components/responses/BookingOrchestrator_GatewayTimeout"
+          }
+        }
+      }
+    },
+    "/booking-logic/api/v1/bookings": {
+      "get": {
+        "operationId": "getBookings",
+        "tags": [
+          "Booking Logic"
+        ],
+        "summary": "Retrieve bookings with optional user filter",
+        "description": "Retrieves confirmed bookings from the booking-data service with optional user filtering. Results are serialized to expose only client-relevant fields.\n\n**Behavior:**\n- When `userId` is provided: Returns only bookings for that specific user\n- When no `userId` is provided: Returns all bookings in the system (typically admin use)\n\n**Data Transformation:**\nBookings are serialized before being returned, transforming MongoDB fields to cleaner client-facing format:\n- `_id` → `id`\n- `course` → `courseId`\n- `user` → `userId`\n- Internal fields like `__v`, `updatedAt`, and `reservation` are excluded\n\n**Use cases:**\n- Display user's booking history\n- Administrative overview of all bookings\n- Booking confirmation pages",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userId",
+            "required": false,
+            "description": "ID of the user to filter bookings",
+            "schema": {
+              "type": "string"
+            },
+            "example": "648a1f4e2f8fb814c8d6f9b1"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request was successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookings": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/BookingLogic_Booking"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "getBookingsResponse": {
+                    "summary": "Example bookings retrieval",
+                    "value": {
+                      "data": {
+                        "bookings": [
+                          {
+                            "id": "69642e1f21d2db02c99b9aec",
+                            "courseId": "695ba111b2e63b75bee66279",
+                            "userId": "648a1f4e2f8fb814c8d6f9b1",
+                            "slots": [
+                              "695ba111b2e63b75bee6627b"
+                            ],
+                            "status": "confirmed",
+                            "transactionId": "6KT41896LL345210G",
+                            "price": "49.00",
+                            "createdAt": "2026-01-11T23:11:27.530Z"
+                          },
+                          {
+                            "id": "6969609fe8d3650f299ea570",
+                            "courseId": "695ba111b2e63b75bee66279",
+                            "userId": "648a1f4e2f8fb814c8d6f9b1",
+                            "slots": [
+                              "695ba111b2e63b75bee6627b",
+                              "695ba111b2e63b75bee6627a"
+                            ],
+                            "status": "confirmed",
+                            "transactionId": "6MC33684BA3458225",
+                            "price": "89.00",
+                            "createdAt": "2026-01-15T21:48:15.941Z"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "emptyBookingsResponse": {
+                    "summary": "Example empty bookings response",
+                    "value": {
+                      "data": {
+                        "bookings": []
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingLogic_InternalServerError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createBooking",
+        "tags": [
+          "Booking Logic"
+        ],
+        "summary": "Create a new booking",
+        "description": "Converts a held reservation into a confirmed booking after successful payment. Performs comprehensive validation before delegating to the booking-data service for atomic transaction execution.\n\n**Validation Flow:**\n1. Validates all required fields are present (userId, reservationId, transactionId, price)\n2. Retrieves the reservation from booking-data service\n3. Verifies the reservation belongs to the requesting user (403 if mismatch)\n4. Confirms the reservation is in `held` status (409 if not)\n5. Checks the reservation hasn't expired (409 if expired)\n6. Delegates to booking-data service to atomically create booking and complete reservation\n\n**Transaction Safety:**\nThe actual booking creation and reservation completion happen atomically in the booking-data service's transaction, ensuring consistency.\n\n**Response:**\nReturns the newly created booking in serialized format with clean field names and only client-relevant data.\n\n**Error Scenarios:**\n- 400: Missing required fields\n- 403: Reservation doesn't belong to the user\n- 404: Reservation not found\n- 409: Reservation not in held status or has expired\n- 500: Downstream service error",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string"
+                  },
+                  "reservationId": {
+                    "type": "string"
+                  },
+                  "transactionId": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "userId",
+                  "reservationId",
+                  "transactionId",
+                  "price"
+                ]
+              },
+              "examples": {
+                "createBookingRequest": {
+                  "summary": "Example booking creation request",
+                  "value": {
+                    "userId": "TEST_USER_12345",
+                    "reservationId": "696b690186faaabbfded290e",
+                    "transactionId": "52V73452E9342521J",
+                    "price": "79.00"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BookingLogic_Booking"
+                    }
+                  }
+                },
+                "examples": {
+                  "createBookingResponse": {
+                    "summary": "Example booking creation response",
+                    "value": {
+                      "data": {
+                        "booking": {
+                          "id": "696b695386faaabbfded2912",
+                          "courseId": "695ba111b2e63b75bee66284",
+                          "userId": "TEST_USER_12345",
+                          "slots": [
+                            "695ba111b2e63b75bee66286"
+                          ],
+                          "status": "confirmed",
+                          "transactionId": "52V73452E9342521J",
+                          "price": "79.00",
+                          "createdAt": "2026-01-17T10:49:55.591Z"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingLogic_BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/BookingLogic_Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingLogic_NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/BookingLogic_Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingLogic_InternalServerError"
+          }
+        }
+      }
+    },
+    "/booking-logic/api/v1/reservations": {
+      "post": {
+        "operationId": "createReservation",
+        "tags": [
+          "Booking Logic"
+        ],
+        "summary": "Create a new reservation",
+        "description": "Creates a new slot reservation with comprehensive validation before delegating to the booking-data service for atomic slot holding.\n\n**Validation Flow:**\n1. Validates request data (userId, courseId, slotIds array)\n2. Retrieves course details from booking-data service\n3. Validates all requested slot IDs exist in the course\n4. Checks each slot has available capacity (returns 409 if any slot unavailable)\n5. Verifies a pricing option exists for the number of slots selected (returns 400 if no match)\n6. Delegates to booking-data service to atomically create reservation and decrement slot availability\n\n**Reservation Expiration:**\nThe reservation is created with a configurable expiration time (default from bookingSettings). After expiration, a cleanup job will cancel the reservation and restore slot availability.\n\n**Response:**\nReturns a simplified response containing:\n- `reservationId`: The unique identifier for the created reservation\n- `priceToPay`: The price based on the matching pricing option\n\n**Atomicity:**\nSlot availability is decremented atomically with reservation creation in the booking-data service's transaction.\n\n**Error Scenarios:**\n- 400: Invalid data or no pricing option for slot count\n- 404: Course not found\n- 409: One or more slots not available\n- 500: Downstream service error",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string"
+                  },
+                  "courseId": {
+                    "type": "string"
+                  },
+                  "slotIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "userId",
+                  "courseId",
+                  "slotIds"
+                ]
+              },
+              "examples": {
+                "createReservationRequest": {
+                  "summary": "Example reservation creation request",
+                  "value": {
+                    "userId": "TEST_USER_12345",
+                    "courseId": "695ba111b2e63b75bee66284",
+                    "slotIds": [
+                      "695ba111b2e63b75bee66286"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reservation created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservationId": {
+                          "type": "string"
+                        },
+                        "priceToPay": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "createReservationResponse": {
+                    "summary": "Example reservation creation response",
+                    "value": {
+                      "data": {
+                        "reservationId": "6969808214d2f13caa1e5f16",
+                        "priceToPay": "49.00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingLogic_BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingLogic_NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/BookingLogic_Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingLogic_InternalServerError"
+          }
+        }
+      }
+    },
+    "/booking-logic/api/v1/reservations/{id}": {
+      "get": {
+        "operationId": "getReservationDetailsById",
+        "tags": [
+          "Booking Logic"
+        ],
+        "summary": "Get reservation details by ID",
+        "description": "Retrieves reservation details with pricing information, enforcing user authorization checks.\n\n**Authorization:**\nThe endpoint requires the `userId` query parameter and validates that the reservation belongs to the requesting user. Returns 403 if there's a mismatch.\n\n**Processing Flow:**\n1. Validates reservation ID is provided\n2. Retrieves reservation from booking-data service\n3. Verifies reservation belongs to requesting user (403 if not)\n4. Fetches associated course details\n5. Calculates price based on number of slots in reservation\n\n**Response:**\nReturns a simplified response with:\n- `reservationId`: The reservation identifier\n- `priceToPay`: Price calculated from course's pricing options based on slot count\n\n**Use cases:**\n- Retrieve pricing before payment processing\n- Verify reservation details during booking flow\n- Check reservation status for payment confirmation\n\n**Error Scenarios:**\n- 400: Missing reservation ID or no pricing option found\n- 403: Reservation doesn't belong to the requesting user\n- 404: Reservation not found\n- 500: Downstream service error",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Reservation ID",
+            "schema": {
+              "type": "string"
+            },
+            "example": "6969808214d2f13caa1e5f16"
+          },
+          {
+            "in": "query",
+            "name": "userId",
+            "required": true,
+            "description": "ID of the user requesting the reservation",
+            "schema": {
+              "type": "string"
+            },
+            "example": "TEST_USER_12345"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reservation details retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservationId": {
+                          "type": "string"
+                        },
+                        "priceToPay": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "getReservationDetailsResponse": {
+                    "summary": "Example reservation details",
+                    "value": {
+                      "data": {
+                        "reservationId": "6969808214d2f13caa1e5f16",
+                        "priceToPay": "49.00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingLogic_BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/BookingLogic_Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingLogic_NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingLogic_InternalServerError"
+          }
+        }
+      }
+    },
+    "/booking-logic/api/v1/reservations/active": {
+      "get": {
+        "operationId": "getActiveCourseReservationForUser",
+        "tags": [
+          "Booking Logic"
+        ],
+        "summary": "Get active reservation for a user and course",
+        "description": "Retrieves the most recent active reservation for a specific user and course, filtering by status and expiration.\n\n**Query Requirements:**\nBoth `userId` and `courseId` query parameters are required. Returns 400 if either is missing.\n\n**Active Reservation Criteria:**\nA reservation is considered active if:\n1. Status is `held` (not completed, cancelled, or expired)\n2. Expiration timestamp is in the future (not expired)\n\n**Filtering Logic:**\n1. Fetches all reservations for the user and course from booking-data service\n2. Filters client-side for active reservations (held status + not expired)\n3. Returns the most recent active reservation (last in filtered array)\n4. Returns 404 if no active reservations found\n\n**Response:**\nReturns the full reservation object in serialized format with clean field names:\n- MongoDB `_id` → `id`\n- `course` → `courseId`\n- `user` → `userId`\n- Internal fields excluded\n\n**Use cases:**\n- Check if user has pending reservation before creating a new one\n- Resume incomplete booking flow\n- Display active reservation during course selection\n\n**Error Scenarios:**\n- 400: Missing userId or courseId\n- 404: No active reservation found\n- 500: Downstream service error",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userId",
+            "required": true,
+            "description": "ID of the user",
+            "schema": {
+              "type": "string"
+            },
+            "example": "TEST_USER_12345"
+          },
+          {
+            "in": "query",
+            "name": "courseId",
+            "required": true,
+            "description": "ID of the course",
+            "schema": {
+              "type": "string"
+            },
+            "example": "695ba111b2e63b75bee66284"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active reservation found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BookingLogic_Reservation"
+                    }
+                  }
+                },
+                "examples": {
+                  "getActiveReservationResponse": {
+                    "summary": "Example active reservation retrieval",
+                    "value": {
+                      "data": {
+                        "reservation": {
+                          "id": "696b69fd86faaabbfded291e",
+                          "courseId": "695ba111b2e63b75bee66284",
+                          "userId": "TEST_USER_12345",
+                          "slots": [
+                            "695ba111b2e63b75bee66286"
+                          ],
+                          "status": "held",
+                          "expiration": "2026-01-17T11:07:45.157Z"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingLogic_BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingLogic_NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingLogic_InternalServerError"
+          }
+        }
+      }
+    },
+    "/booking-logic/api/v1/reservations/{id}/cancel": {
+      "patch": {
+        "operationId": "cancelReservation",
+        "tags": [
+          "Booking Logic"
+        ],
+        "summary": "Cancel a reservation",
+        "description": "Cancels a held reservation with authorization and status validation, delegating to booking-data service for atomic slot restoration.\n\n**Validation Flow:**\n1. Validates reservation ID and userId are provided (400 if missing)\n2. Retrieves reservation from booking-data service\n3. Verifies reservation belongs to requesting user (403 if mismatch)\n4. Confirms reservation is in `held` status (409 if not)\n5. Delegates to booking-data service to atomically cancel reservation and restore slot availability\n\n**Authorization:**\nStrict ownership validation ensures users can only cancel their own reservations. Returns 403 if the reservation's user ID doesn't match the requesting userId.\n\n**Status Validation:**\nOnly reservations in `held` status can be cancelled. Attempting to cancel completed, already-cancelled, or expired reservations returns 409 conflict.\n\n**Atomicity:**\nThe booking-data service handles the actual cancellation in a transaction that:\n- Updates reservation status to `cancelled`\n- Increments available slots by the number that were held\n- Ensures consistency even under concurrent operations\n\n**Success Response:**\nReturns 204 No Content upon successful cancellation.\n\n**Use cases:**\n- User explicitly abandons booking process\n- User selects different slots and needs to cancel previous reservation\n- Timeout handler cancels expired reservations\n\n**Error Scenarios:**\n- 400: Missing reservation ID or userId\n- 403: Reservation belongs to different user\n- 404: Reservation not found\n- 409: Reservation not in held status\n- 500: Downstream service error",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "The unique identifier of the reservation to cancel",
+            "schema": {
+              "type": "string"
+            },
+            "example": "696b69fd86faaabbfded291e"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "userId"
+                ],
+                "examples": {
+                  "cancelReservationRequest": {
+                    "summary": "Example cancellation request",
+                    "value": {
+                      "userId": "TEST_USER_12345"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/BookingLogic_NoContent"
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingLogic_BadRequest"
+          },
+          "403": {
+            "$ref": "#/components/responses/BookingLogic_Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingLogic_NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/BookingLogic_Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingLogic_InternalServerError"
+          }
+        }
+      }
+    },
+    "/booking-data/api/v1/bookings": {
+      "get": {
+        "operationId": "retrieveBookingsWithOptionalFilters",
+        "tags": [
+          "Booking Data"
+        ],
+        "summary": "Retrieve bookings with optional filters",
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "bookings": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/BookingData_Bookings"
+                          }
+                        }
+                      },
+                      "required": [
+                        "bookings"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "bookingsResponse": {
+                    "summary": "A list of bookings",
+                    "value": {
+                      "data": {
+                        "bookings": [
+                          {
+                            "_id": "69642e1f21d2db02c99b9aec",
+                            "course": "695ba111b2e63b75bee66279",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "reservation": "69642e1921d2db02c99b9ae8",
+                            "slots": [
+                              "695ba111b2e63b75bee6627b"
+                            ],
+                            "status": "confirmed",
+                            "transactionId": "6KT41896LL345210G",
+                            "price": "49.00",
+                            "createdAt": "2026-01-11T23:11:27.530Z",
+                            "updatedAt": "2026-01-11T23:11:27.530Z",
+                            "__v": 0
+                          },
+                          {
+                            "_id": "6969609fe8d3650f299ea570",
+                            "course": "695ba111b2e63b75bee66279",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "reservation": "69696094e8d3650f299ea56c",
+                            "slots": [
+                              "695ba111b2e63b75bee6627b",
+                              "695ba111b2e63b75bee6627a"
+                            ],
+                            "status": "confirmed",
+                            "transactionId": "6MC33684BA3458225",
+                            "price": "89.00",
+                            "createdAt": "2026-01-15T21:48:15.941Z",
+                            "updatedAt": "2026-01-15T21:48:15.941Z",
+                            "__v": 0
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The server encountered an unexpected condition that prevented it from fulfilling the request. Report the issue to the support team if it persists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                },
+                "examples": {
+                  "internalServerError": {
+                    "summary": "Example internal server error response",
+                    "value": {
+                      "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "An unexpected error occurred while processing the request."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userId",
+            "required": false,
+            "style": "form",
+            "description": "ID of the user holding the bookings",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "allowReserved": false
+          }
+        ],
+        "description": "Retrieves all booking records from the database, with optional filtering by user ID.\n\nThis endpoint performs a read-only query against the bookings collection. When no filters are provided, all confirmed bookings across all users are returned. Results are returned as raw MongoDB documents including all internal fields.\n\n**Filtering:**\n- `userId`: Returns only bookings associated with the specified user ID. When provided, the query filters by the `user` field in the booking document.\n\n**Use cases:**\n- Retrieve a user's booking history\n- Admin view of all bookings in the system\n- Audit and reporting purposes"
+      },
+      "post": {
+        "operationId": "createABookingAtomically",
+        "tags": [
+          "Booking Data"
+        ],
+        "summary": "Create a Booking atomically",
+        "responses": {
+          "201": {
+            "description": "The request was successful: a new booking was created and the reservation was flagged as confirmed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "booking": {
+                          "$ref": "#/components/schemas/BookingData_Bookings"
+                        }
+                      },
+                      "required": [
+                        "booking"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "createBookingResponse": {
+                    "summary": "Example booking creation response",
+                    "value": {
+                      "data": {
+                        "booking": {
+                          "_id": "69642e1f21d2db02c99b9aec",
+                          "course": "695ba111b2e63b75bee66279",
+                          "user": "648a1f4e2f8fb814c8d6f9b1",
+                          "reservation": "69642e1921d2db02c99b9ae8",
+                          "slots": [
+                            "695ba111b2e63b75bee6627b"
+                          ],
+                          "status": "confirmed",
+                          "transactionId": "6KT41896LL345210G",
+                          "price": "49.00",
+                          "createdAt": "2026-01-11T23:11:27.530Z",
+                          "updatedAt": "2026-01-11T23:11:27.530Z",
+                          "__v": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingData_BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingData_NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingData_InternalServerError"
+          }
+        },
+        "description": "Atomically creates a new confirmed booking and finalizes the associated reservation in a single database transaction.\n\n**Transaction Flow:**\n1. Validates all required booking data (courseId, userId, reservationId, slots, transactionId, price)\n2. Validates that the specified reservation exists\n3. Creates a new booking document in `confirmed` status\n4. Updates the associated reservation status to `completed`\n5. Commits the transaction only if all operations succeed\n\n**Atomicity Guarantee:**\nAll database operations are executed within a MongoDB transaction. If any step fails, all changes are rolled back to maintain data consistency. This ensures that a booking is never created without properly completing its reservation.\n\n**Important:**\n- The reservation must exist before creating a booking\n- Slot availability is NOT modified by this endpoint (it should have been decremented when the reservation was created)\n- The transactionId should reference a successful payment transaction",
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "courseId": {
+                    "type": "string"
+                  },
+                  "userId": {
+                    "type": "string"
+                  },
+                  "reservationId": {
+                    "type": "string"
+                  },
+                  "slots": {
+                    "type": "string"
+                  },
+                  "transactionId": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "courseId",
+                  "userId",
+                  "reservationId",
+                  "slots",
+                  "transactionId",
+                  "price"
+                ]
+              },
+              "examples": {
+                "createBookingRequest": {
+                  "summary": "Example booking creation request",
+                  "value": {
+                    "courseId": "695ba111b2e63b75bee6627e",
+                    "userId": "648a1f4e2f8fb814c8d6f9b1",
+                    "reservationId": "69696655989dec9e8a6e9fed",
+                    "slots": [
+                      "695ba111b2e63b75bee6627f"
+                    ],
+                    "transactionId": "05V54435V6286635A",
+                    "price": "99.00"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/booking-data/api/v1/courses": {
+      "get": {
+        "operationId": "getAllCourses",
+        "tags": [
+          "Booking Data"
+        ],
+        "summary": "Retrieve the list of all available courses.",
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "courses": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/BookingData_Course"
+                          }
+                        }
+                      },
+                      "required": [
+                        "courses"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "coursesResponse": {
+                    "summary": "A list of courses",
+                    "value": {
+                      "data": {
+                        "courses": [
+                          {
+                            "_id": "695ba111b2e63b75bee66279",
+                            "name": "Introduction to Web Development",
+                            "description": "Learn the basics of HTML, CSS, and JavaScript to build modern web pages.",
+                            "slots": [
+                              {
+                                "start": "2026-03-10T09:00:00.000Z",
+                                "end": "2026-03-10T13:00:00.000Z",
+                                "capacity": 20,
+                                "available": 20,
+                                "_id": "695ba111b2e63b75bee6627a"
+                              },
+                              {
+                                "start": "2026-03-12T14:00:00.000Z",
+                                "end": "2026-03-12T18:00:00.000Z",
+                                "capacity": 20,
+                                "available": 14,
+                                "_id": "695ba111b2e63b75bee6627b"
+                              },
+                              {
+                                "start": "2026-03-15T14:00:00.000Z",
+                                "end": "2026-03-15T18:00:00.000Z",
+                                "capacity": 20,
+                                "available": 20,
+                                "_id": "695ee7f30b5f48720cad5c81"
+                              }
+                            ],
+                            "open": true,
+                            "priceOptions": [
+                              {
+                                "numberSlots": 1,
+                                "price": "49.00",
+                                "_id": "695ba111b2e63b75bee6627c"
+                              },
+                              {
+                                "numberSlots": 2,
+                                "price": "89.00",
+                                "_id": "695ba111b2e63b75bee6627d"
+                              }
+                            ],
+                            "__v": 0,
+                            "createdAt": "2026-01-05T11:31:29.809Z",
+                            "updatedAt": "2026-01-15T22:10:00.827Z"
+                          },
+                          {
+                            "_id": "695ba111b2e63b75bee6627e",
+                            "name": "Advanced Node.js and Backend APIs",
+                            "description": "Deep dive into Node.js, Express, and REST API design with real-world patterns.",
+                            "slots": [
+                              {
+                                "start": "2026-03-18T09:00:00.000Z",
+                                "end": "2026-03-18T17:00:00.000Z",
+                                "capacity": 15,
+                                "available": 9,
+                                "_id": "695ba111b2e63b75bee6627f"
+                              },
+                              {
+                                "start": "2026-03-22T09:00:00.000Z",
+                                "end": "2026-03-25T17:00:00.000Z",
+                                "capacity": 15,
+                                "available": 15,
+                                "_id": "695ba111b2e63b75bee66280"
+                              }
+                            ],
+                            "open": true,
+                            "priceOptions": [
+                              {
+                                "numberSlots": 1,
+                                "price": "99.00",
+                                "_id": "695ba111b2e63b75bee66281"
+                              },
+                              {
+                                "numberSlots": 2,
+                                "price": "179.00",
+                                "_id": "695ba111b2e63b75bee66282"
+                              },
+                              {
+                                "numberSlots": 3,
+                                "price": "249.00",
+                                "_id": "695ba111b2e63b75bee66283"
+                              }
+                            ],
+                            "__v": 0,
+                            "createdAt": "2026-01-05T11:31:29.810Z",
+                            "updatedAt": "2026-01-15T22:30:00.867Z"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingData_InternalServerError"
+          }
+        },
+        "parameters": [],
+        "description": "Retrieves all course records stored in the database without any filtering or pagination.\n\n**Response Details:**\nReturns complete course documents including:\n- Course metadata (name, description, open status)\n- All time slots with real-time availability counts\n- Pricing options for different slot combinations\n- MongoDB internal fields (_id, __v, createdAt, updatedAt)\n\n**Slot Availability:**\nThe `available` field in each slot reflects real-time availability. This value is decremented when reservations are created and incremented when reservations are cancelled or expire.\n\n**Use cases:**\n- Display course catalog to users\n- Check current availability before creating reservations\n- Administrative course management"
+      }
+    },
+    "/booking-data/api/v1/courses/{id}": {
+      "get": {
+        "operationId": "getCourseById",
+        "tags": [
+          "Booking Data"
+        ],
+        "summary": "Retrieve a single course by its id.",
+        "description": "Retrieves detailed information for a single course identified by its MongoDB ObjectId.\n\n**Validation:**\n- The ID parameter is validated as a proper MongoDB ObjectId format\n- Returns 400 if the ID format is invalid\n- Returns 404 if no course exists with the specified ID\n\n**Response Details:**\nReturns the complete course document including:\n- Course information (name, description)\n- All available time slots with current capacity and availability\n- Pricing structure for different slot combinations\n- Timestamps and MongoDB metadata\n\n**Real-time Availability:**\nThe slot availability counts reflect the current state and are updated atomically when reservations are created or cancelled.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": false,
+            "style": "form",
+            "description": "ID of the course to retrieve.",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sampleCourseId": {
+                "value": "695ba111b2e63b75bee66279"
+              }
+            },
+            "allowReserved": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "course": {
+                          "$ref": "#/components/schemas/BookingData_Course"
+                        }
+                      },
+                      "required": [
+                        "course"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "courseResponse": {
+                    "summary": "Example course retrieval response",
+                    "value": {
+                      "data": {
+                        "course": {
+                          "_id": "695ba111b2e63b75bee66279",
+                          "name": "Introduction to Web Development",
+                          "description": "Learn the basics of HTML, CSS, and JavaScript to build modern web pages.",
+                          "slots": [
+                            {
+                              "start": "2026-03-10T09:00:00.000Z",
+                              "end": "2026-03-10T13:00:00.000Z",
+                              "capacity": 20,
+                              "available": 20,
+                              "_id": "695ba111b2e63b75bee6627a"
+                            },
+                            {
+                              "start": "2026-03-12T14:00:00.000Z",
+                              "end": "2026-03-12T18:00:00.000Z",
+                              "capacity": 20,
+                              "available": 14,
+                              "_id": "695ba111b2e63b75bee6627b"
+                            },
+                            {
+                              "start": "2026-03-15T14:00:00.000Z",
+                              "end": "2026-03-15T18:00:00.000Z",
+                              "capacity": 20,
+                              "available": 20,
+                              "_id": "695ee7f30b5f48720cad5c81"
+                            }
+                          ],
+                          "open": true,
+                          "priceOptions": [
+                            {
+                              "numberSlots": 1,
+                              "price": "49.00",
+                              "_id": "695ba111b2e63b75bee6627c"
+                            },
+                            {
+                              "numberSlots": 2,
+                              "price": "89.00",
+                              "_id": "695ba111b2e63b75bee6627d"
+                            }
+                          ],
+                          "__v": 0,
+                          "createdAt": "2026-01-05T11:31:29.809Z",
+                          "updatedAt": "2026-01-15T22:10:00.827Z"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingData_BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingData_NotFound"
+          }
+        }
+      }
+    },
+    "/booking-data/api/v1/reservations": {
+      "get": {
+        "operationId": "getReservations",
+        "tags": [
+          "Booking Data"
+        ],
+        "summary": "Retrieve reservations with optional filtering.",
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservations": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/BookingData_Reservation"
+                          }
+                        }
+                      },
+                      "required": [
+                        "reservations"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "reservationsResponse": {
+                    "summary": "A list of reservations",
+                    "value": {
+                      "data": {
+                        "reservations": [
+                          {
+                            "_id": "695d651ad97543f2ef9b5231",
+                            "course": "695ba111b2e63b75bee6627e",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "slots": [
+                              "695ba111b2e63b75bee6627f",
+                              "695ba111b2e63b75bee66280"
+                            ],
+                            "status": "cancelled",
+                            "expiration": "2026-01-06T19:55:10.345Z",
+                            "createdAt": "2026-01-06T19:40:10.351Z",
+                            "updatedAt": "2026-01-07T18:30:01.202Z",
+                            "__v": 0
+                          },
+                          {
+                            "_id": "695d656ed97543f2ef9b523c",
+                            "course": "695ba111b2e63b75bee6627e",
+                            "user": "648a1f4e2f8fb814c8d6f9b1",
+                            "slots": [
+                              "695ba111b2e63b75bee6627f",
+                              "695ba111b2e63b75bee66280"
+                            ],
+                            "status": "confirmed",
+                            "expiration": "2026-01-06T19:56:34.674Z",
+                            "createdAt": "2026-01-06T19:41:34.675Z",
+                            "updatedAt": "2026-01-07T17:07:00.497Z",
+                            "__v": 0
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingData_BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingData_InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userId",
+            "required": false,
+            "style": "form",
+            "description": "ID of the user holding the reservations",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sampleUserId": {
+                "value": "648a1f4e2f8fb814c8d6f9b1"
+              }
+            },
+            "allowReserved": false
+          },
+          {
+            "in": "query",
+            "name": "courseId",
+            "required": false,
+            "style": "form",
+            "description": "ID of the course associated with the reservations",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sampleCourseId": {
+                "value": "695ba111b2e63b75bee6627e"
+              }
+            },
+            "allowReserved": false
+          }
+        ],
+        "description": "Retrieves reservation records from the database with optional filtering by user ID and/or course ID.\n\n**Filtering Options:**\n- No filters: Returns all reservations in the system regardless of status\n- `userId`: Returns only reservations for the specified user\n- `courseId`: Returns only reservations for the specified course (validates ObjectId format)\n- Both filters: Returns reservations matching both criteria (user AND course)\n\n**Reservation Statuses:**\nResults may include reservations in any status:\n- `held`: Active reservation with slot availability temporarily held\n- `completed`: Reservation successfully converted to a confirmed booking\n- `cancelled`: Manually cancelled reservation with slots released\n- `expired`: Reservation that expired before being confirmed (may be cleaned up by cron job)\n\n**Use cases:**\n- Check user's active and past reservations\n- Audit reservation history for a course\n- Monitor system-wide reservation activity"
+      },
+      "post": {
+        "operationId": "createAReservationAtomically",
+        "tags": [
+          "Booking Data"
+        ],
+        "summary": "Create a reservation and hold slot availability atomically.",
+        "description": "Atomically creates a new reservation and holds the specified slot availability within a single database transaction.\n\n**Transaction Flow:**\n1. Validates the course exists\n2. Verifies all specified slot IDs exist within the course\n3. Checks that each slot has at least 1 available space\n4. Decrements the `available` count for each selected slot by 1\n5. Creates a new reservation in `held` status with calculated expiration time\n6. Commits the transaction only if all operations succeed\n\n**Atomicity Guarantee:**\nAll operations are wrapped in a MongoDB transaction. If any validation fails or if slots become unavailable between checks, the entire transaction is rolled back and no changes are persisted. This prevents race conditions and ensures data consistency.\n\n**Expiration:**\nThe reservation is created with an expiration timestamp calculated as `now + expiresInMinutes`. After this time, the reservation may be automatically cancelled by the cleanup cron job, which will restore the held slot availability.\n\n**Conflict Handling:**\n- Returns 404 if the course doesn't exist\n- Returns 400 if any slot ID is not found in the course\n- Returns 409 if any slot has zero availability",
+        "responses": {
+          "201": {
+            "description": "The request was successful: a new reservation was created and the slot availability was updated accordingly.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservation": {
+                          "$ref": "#/components/schemas/BookingData_Reservation"
+                        }
+                      },
+                      "required": [
+                        "reservation"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "createReservationResponse": {
+                    "summary": "Example reservation creation response",
+                    "value": {
+                      "data": {
+                        "reservation": {
+                          "course": "695ba111b2e63b75bee66279",
+                          "user": "648a1f4e2f8fb814c8d6f9b1",
+                          "slots": [
+                            "695ee7f30b5f48720cad5c81"
+                          ],
+                          "status": "held",
+                          "expiration": "2026-01-16T00:19:18.552Z",
+                          "_id": "6969808214d2f13caa1e5f16",
+                          "createdAt": "2026-01-16T00:04:18.557Z",
+                          "updatedAt": "2026-01-16T00:04:18.557Z",
+                          "__v": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingData_BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingData_NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/BookingData_Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingData_InternalServerError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "test": {
+                    "type": "string"
+                  },
+                  "userId": {
+                    "type": "string"
+                  },
+                  "courseId": {
+                    "type": "string"
+                  },
+                  "slotIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "expiresInMinutes": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "userId",
+                  "courseId",
+                  "slotIds",
+                  "expiresInMinutes"
+                ]
+              },
+              "examples": {
+                "createReservationRequest": {
+                  "summary": "Example reservation creation request",
+                  "value": {
+                    "userId": "648a1f4e2f8fb814c8d6f9b1",
+                    "courseId": "695ba111b2e63b75bee66279",
+                    "slotIds": [
+                      "695ee7f30b5f48720cad5c81"
+                    ],
+                    "expiresInMinutes": 15
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": []
+      }
+    },
+    "/booking-data/api/v1/reservations/{id}": {
+      "get": {
+        "operationId": "getReservationById",
+        "tags": [
+          "Booking Data"
+        ],
+        "summary": "Retrieve a reservation by its unique identifier.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "style": "form",
+            "description": "The unique identifier of the reservation to retrieve.",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sampleId": {
+                "value": "695d651ad97543f2ef9b5231"
+              }
+            },
+            "allowReserved": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reservation": {
+                          "$ref": "#/components/schemas/BookingData_Reservation"
+                        }
+                      },
+                      "required": [
+                        "reservation"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "reservationResponse": {
+                    "summary": "Example reservation retrieval response",
+                    "value": {
+                      "data": {
+                        "reservation": {
+                          "_id": "695d651ad97543f2ef9b5231",
+                          "course": "695ba111b2e63b75bee6627e",
+                          "user": "648a1f4e2f8fb814c8d6f9b1",
+                          "slots": [
+                            "695ba111b2e63b75bee6627f",
+                            "695ba111b2e63b75bee66280"
+                          ],
+                          "status": "held",
+                          "expiration": "2026-01-06T19:55:10.345Z",
+                          "createdAt": "2026-01-06T19:40:10.351Z",
+                          "updatedAt": "2026-01-07T18:30:01.202Z",
+                          "__v": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingData_BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingData_NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingData_InternalServerError"
+          }
+        },
+        "description": "Retrieves complete details for a single reservation identified by its MongoDB ObjectId.\n\n**Validation:**\n- Validates the ID parameter is a properly formatted MongoDB ObjectId\n- Returns 400 for invalid ID format\n- Returns 404 if no reservation exists with the specified ID\n\n**Response:**\nReturns the full reservation document including:\n- Associated course and user IDs\n- Array of reserved slot IDs\n- Current status (held, completed, cancelled, or expired)\n- Expiration timestamp (for held reservations)\n- Creation and modification timestamps\n- MongoDB metadata fields\n\n**Use cases:**\n- Verify reservation details before payment\n- Check reservation status and expiration\n- Retrieve reservation data for booking confirmation"
+      }
+    },
+    "/booking-data/api/v1/reservations/{id}/cancel": {
+      "patch": {
+        "operationId": "cancelAReservation",
+        "tags": [
+          "Booking Data"
+        ],
+        "summary": "Cancel a reservation and restore slot availability.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "style": "form",
+            "description": "The unique identifier of the reservation to cancel.",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            },
+            "examples": {
+              "sampleId": {
+                "value": "695d651ad97543f2ef9b5231"
+              }
+            },
+            "allowReserved": false
+          }
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/BookingData_No Content"
+          },
+          "400": {
+            "$ref": "#/components/responses/BookingData_BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/BookingData_NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/BookingData_InternalServerError"
+          }
+        },
+        "description": "Atomically cancels an existing reservation and restores slot availability within a single database transaction.\n\n**Transaction Flow:**\n1. Validates the reservation ID format (MongoDB ObjectId)\n2. Retrieves the reservation document\n3. Verifies the associated course exists\n4. Validates all reserved slots still exist in the course\n5. Increments the `available` count for each reserved slot by 1\n6. Updates the reservation status to `cancelled`\n7. Commits the transaction only if all operations succeed\n\n**Atomicity Guarantee:**\nAll database operations are executed within a MongoDB transaction. If any step fails (e.g., course not found, slot mismatch), the entire transaction is rolled back and no changes are persisted.\n\n**Idempotency:**\nThis endpoint can be called on already-cancelled reservations. The operation will still validate data integrity but may not modify any documents if the status is already `cancelled`.\n\n**Use cases:**\n- User explicitly cancels a pending reservation\n- Timeout/cleanup of abandoned reservations\n- Administrative cancellation of problematic reservations\n\n**Success Response:**\nReturns 204 No Content with no response body upon successful cancellation."
+      }
+    },
+    "/booking-data/api/v1/reservations/cleanup": {
+      "patch": {
+        "operationId": "cleanupExpiredReservations",
+        "tags": [
+          "Booking Data"
+        ],
+        "summary": "Clean up expired held reservations.",
+        "description": "Batch cleanup job that identifies and cancels expired reservations in `held` status, restoring their slot availability.\n\n**Cleanup Process:**\n1. Queries for reservations with status=`held` and expiration timestamp < current time\n2. Limits results to a configured batch size to prevent overwhelming the database\n3. For each expired reservation, executes a cancellation transaction:\n   - Validates the associated course exists\n   - Verifies all reserved slots exist\n   - Increments slot availability counters\n   - Updates reservation status to `cancelled`\n4. Tracks success/failure counts for each reservation processed\n\n**Transaction Isolation:**\nEach reservation is cancelled in its own separate transaction. If one reservation fails to clean up, others in the batch continue processing. This prevents a single failure from blocking the entire cleanup job.\n\n**Error Handling:**\nErrors during individual reservation cleanup are caught and logged, with the reservation counted as `failed`. The endpoint continues processing remaining reservations in the batch.\n\n**Response:**\nReturns statistics about the cleanup operation:\n- `processed`: Total number of expired reservations found and attempted\n- `cleaned`: Number successfully cancelled with slots restored  \n- `failed`: Number that encountered errors during cancellation\n\n**Intended Usage:**\nThis endpoint should be called periodically by a cron job or scheduled task to ensure expired reservations don't permanently hold slot availability.",
+        "responses": {
+          "200": {
+            "description": "The request was successful, and the server has returned the requested resource in the response body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "processed": {
+                          "type": "number"
+                        },
+                        "cleaned": {
+                          "type": "number"
+                        },
+                        "failed": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "processed",
+                        "cleaned",
+                        "failed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "examples": {
+                  "cleanupResponse": {
+                    "summary": "Example cleanup response",
+                    "value": {
+                      "data": {
+                        "processed": 10,
+                        "cleaned": 8,
+                        "failed": 2
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth-adapter/api/v1/oauth/google/login": {
+      "get": {
+        "operationId": "startGoogleLogin",
+        "tags": [
+          "OAuth Adapter"
+        ],
+        "summary": "Initiate Google OAuth login",
+        "description": "Adapter entry point that initiates the OAuth 2.0 authorization code flow by redirecting the user's browser to Google's consent screen.\n\n**Adapter Pattern Role:**\nAdapts internal authentication request to Google's OAuth 2.0 protocol requirements.\n\n**External Service Integration:**\n- **Provider:** Google OAuth 2.0\n- **Protocol:** OAuth 2.0 Authorization Code Flow\n- **Redirect Target:** Google OAuth authorization endpoint\n\n**Adapter Responsibilities:**\n1. Generate OAuth state parameter for CSRF protection\n2. Construct Google authorization URL with required parameters (client_id, redirect_uri, scope, state)\n3. Redirect user's browser to Google consent screen\n\n**OAuth Parameters:**\n- **scope:** profile, email (requests user profile and email access)\n- **response_type:** code (authorization code flow)\n- **redirect_uri:** This adapter's callback endpoint\n\n**Flow Continuation:**\nAfter user consent, Google redirects back to `/api/v1/oauth/google/callback` with authorization code.",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Redirect to Google OAuth consent screen",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Google OAuth authorization URL"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth-adapter/api/v1/oauth/google/callback": {
+      "get": {
+        "operationId": "googleCallback",
+        "tags": [
+          "OAuth Adapter"
+        ],
+        "summary": "Handle Google OAuth callback",
+        "description": "Adapter callback endpoint that translates Google's OAuth 2.0 response into an internal authentication assertion for the orchestrator service.\n\n**Adapter Pattern Role:**\nProtocol translation layer that converts external OAuth provider response into internal authentication format, isolating the orchestrator from Google-specific OAuth implementation details.\n\n**External Service Integration:**\n- **Provider:** Google OAuth 2.0 Token Exchange and UserInfo API\n- **Operations:** Exchange authorization code for access token, retrieve user profile\n\n**Adapter Processing Flow:**\n1. **Validate callback:** Verify state parameter for CSRF protection\n2. **Token exchange:** POST to Google token endpoint with authorization code → receive access token\n3. **Profile retrieval:** GET Google UserInfo API with access token → extract user profile (sub, picture)\n4. **Protocol translation:** Convert OAuth response to internal assertion format\n5. **Assertion creation:** Generate nonce, create HMAC-SHA256 signature, package assertion\n6. **Service notification:** POST assertion to orchestrator's `/api/v1/auth/internal/assert` endpoint\n7. **Browser redirect:** Redirect user to orchestrator's `/api/v1/auth/complete?nonce={nonce}`\n\n**Assertion Structure (Internal Protocol):**\n- **provider:** 'google'\n- **sub:** Google user identifier\n- **iat:** Issued-at timestamp\n- **nonce:** UUID for session correlation\n- **signature:** HMAC-SHA256(provider:sub:iat:nonce, shared_secret)\n- **picture:** User profile picture URL\n- **frontendRedirectUrl:** Final redirect destination\n\n**Error Handling:**\n- OAuth errors from Google are logged and return 500\n- Assertion delivery failures return 500 CREDENTIAL_ASSERTION_FAILED\n\n**Security:**\nSignature verification ensures assertion authenticity when orchestrator retrieves it. The adapter acts as a trusted intermediary between Google and the internal system.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "description": "Authorization code from Google OAuth",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "description": "State parameter for CSRF protection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to orchestrator complete endpoint after successful authentication",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Orchestrator complete URL with nonce parameter",
+                "example": "http://orchestrator:3000/api/v1/auth/complete?nonce=550e8400-e29b-41d4-a716-446655440000"
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/OAuthAdapter_InternalServerError"
+          }
+        }
+      }
+    },
+    "/paypal-adapter/api/v1/orders/create": {
+      "post": {
+        "operationId": "createOrder",
+        "tags": [
+          "PayPal Adapter"
+        ],
+        "summary": "Create a PayPal order",
+        "description": "Adapter endpoint that translates internal reservation payment request into PayPal Orders API v2 format.\n\n**Adapter Pattern Role:**\nData model translation layer that converts internal reservation and pricing representation to PayPal-specific order structure, isolating orchestrator from PayPal API changes.\n\n**External Service Integration:**\n- **Provider:** PayPal Orders API v2\n- **Operation:** POST /v2/checkout/orders\n- **Authentication:** OAuth 2.0 client credentials flow with PayPal\n\n**Adapter Translation:**\n1. **Input (internal model):** reservationId, priceToPay (EUR string)\n2. **Translation:** Map to PayPal order structure with purchase_units, amount, currency_code\n3. **PayPal API Call:** Create order with intent=CAPTURE\n4. **Output (internal model):** orderID\n\n**PayPal Order Configuration:**\n- **intent:** CAPTURE (immediate payment capture after approval)\n- **currency:** EUR (hardcoded in adapter)\n- **purchase_unit:** Single item with reservation price\n\n**Error Handling:**\n- 400: Missing or invalid input parameters (adapter validation)\n- 500: PayPal API errors translated to PAYPAL_ORDER_CREATION_FAILED\n\n**Use Case:**\nCalled by orchestrator during booking initiation to prepare payment infrastructure before user payment approval.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reservationId": {
+                    "type": "string",
+                    "description": "The reservation ID to associate with this payment"
+                  },
+                  "priceToPay": {
+                    "type": "string",
+                    "description": "The amount to charge in EUR (must be a string with 2 decimals)"
+                  }
+                },
+                "required": [
+                  "reservationId",
+                  "priceToPay"
+                ]
+              },
+              "examples": {
+                "createOrderRequest": {
+                  "summary": "Example order creation request",
+                  "value": {
+                    "reservationId": "6969808214d2f13caa1e5f16",
+                    "priceToPay": "49.00"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "orderID": {
+                          "type": "string",
+                          "description": "The PayPal order ID"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "createOrderResponse": {
+                    "summary": "Example order creation response",
+                    "value": {
+                      "data": {
+                        "orderID": "8VX12345AB6789012"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PayPalAdapter_BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/PayPalAdapter_InternalServerError"
+          }
+        }
+      }
+    },
+    "/paypal-adapter/api/v1/orders/capture": {
+      "post": {
+        "operationId": "captureOrder",
+        "tags": [
+          "PayPal Adapter"
+        ],
+        "summary": "Capture a PayPal order",
+        "description": "Adapter endpoint that executes payment capture via PayPal API and translates capture response to internal format.\n\n**Adapter Pattern Role:**\nOperation translation layer that adapts PayPal's capture operation and response structure to internal payment confirmation model.\n\n**External Service Integration:**\n- **Provider:** PayPal Orders API v2\n- **Operation:** POST /v2/checkout/orders/{orderID}/capture\n- **Purpose:** Finalize payment and move funds from customer to merchant\n\n**Adapter Translation Flow:**\n1. **Input (internal):** orderID (from previous create operation)\n2. **PayPal API Call:** Execute capture on approved order\n3. **Response parsing:** Extract capture details from nested PayPal response structure\n4. **Output (internal):** Simplified capture model (status, captureId, pricePaid)\n\n**PayPal Response Extraction:**\nNavigates complex PayPal response: `order.purchase_units[0].payments.captures[0]` → extracts id, status, amount.value\n\n**Status Translation:**\n- **COMPLETED:** Payment successfully captured\n- Other statuses returned as-is for orchestrator evaluation\n\n**Error Handling:**\n- 400: Missing orderID or invalid format\n- 500: PayPal API errors (order not approved, already captured, etc.) → PAYPAL_ORDER_CAPTURE_FAILED\n\n**Critical Operation:**\nThis endpoint executes the financial transaction. Called by orchestrator after user approves payment in frontend PayPal UI.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "orderID": {
+                    "type": "string",
+                    "description": "The PayPal order ID to capture"
+                  }
+                },
+                "required": [
+                  "orderID"
+                ]
+              },
+              "examples": {
+                "captureOrderRequest": {
+                  "summary": "Example order capture request",
+                  "value": {
+                    "orderID": "8VX12345AB6789012"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order captured successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "description": "The capture status (e.g., COMPLETED)"
+                        },
+                        "captureId": {
+                          "type": "string",
+                          "description": "The PayPal capture ID"
+                        },
+                        "pricePaid": {
+                          "type": "string",
+                          "description": "The amount that was captured"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "captureOrderResponse": {
+                    "summary": "Example order capture response",
+                    "value": {
+                      "data": {
+                        "status": "COMPLETED",
+                        "captureId": "6KT41896LL345210G",
+                        "pricePaid": "49.00"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PayPalAdapter_BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/PayPalAdapter_InternalServerError"
+          }
+        }
+      }
+    },
+    "/paypal-adapter/api/v1/orders/refund": {
+      "post": {
+        "operationId": "refundOrder",
+        "tags": [
+          "PayPal Adapter"
+        ],
+        "summary": "Refund a captured payment",
+        "description": "Adapter endpoint that executes payment refund via PayPal API as part of distributed saga compensation logic.\n\n**Adapter Pattern Role:**\nCompensation operation adapter that translates internal refund request to PayPal Payments API refund operation.\n\n**External Service Integration:**\n- **Provider:** PayPal Payments API v2\n- **Operation:** POST /v2/payments/captures/{captureId}/refund\n- **Purpose:** Return funds to customer (compensation for failed booking)\n\n**Adapter Translation Flow:**\n1. **Input (internal):** captureId (from previous capture), reservationId (for logging/tracking)\n2. **PayPal API Call:** Execute full refund on captured payment\n3. **Response parsing:** Extract refund ID and status from PayPal response\n4. **Output (internal):** Simplified refund model (refundId, status)\n\n**Refund Type:**\nFull refund (no amount specified) - returns entire captured amount to customer.\n\n**Saga Compensation Context:**\nPrimarily used by orchestrator's saga compensation logic when booking creation fails after payment capture. Adapter isolates orchestrator from PayPal-specific refund API details.\n\n**Error Handling:**\n- 400: Missing captureId/reservationId or invalid format\n- 500: PayPal API errors (capture not found, already refunded, insufficient funds) → PAYPAL_PAYMENT_REFUND_FAILED\n\n**Idempotency:**\nPayPal API handles duplicate refund attempts - adapter passes through PayPal's error response if refund already exists.\n\n**Critical Financial Operation:**\nFailure of this operation in saga compensation requires manual intervention to ensure customer receives refund.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "captureId": {
+                    "type": "string",
+                    "description": "The PayPal capture ID to refund"
+                  },
+                  "reservationId": {
+                    "type": "string",
+                    "description": "The reservation ID associated with this refund"
+                  }
+                },
+                "required": [
+                  "captureId",
+                  "reservationId"
+                ]
+              },
+              "examples": {
+                "refundOrderRequest": {
+                  "summary": "Example refund request",
+                  "value": {
+                    "captureId": "6KT41896LL345210G",
+                    "reservationId": "6969808214d2f13caa1e5f16"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Refund processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "refundId": {
+                          "type": "string",
+                          "description": "The PayPal refund ID"
+                        },
+                        "status": {
+                          "type": "string",
+                          "description": "The refund status (e.g., COMPLETED)"
+                        }
+                      }
+                    }
+                  }
+                },
+                "examples": {
+                  "refundOrderResponse": {
+                    "summary": "Example refund response",
+                    "value": {
+                      "data": {
+                        "refundId": "3L428953E3355840R",
+                        "status": "COMPLETED"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PayPalAdapter_BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/PayPalAdapter_InternalServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BookingOrchestrator_Course": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "_id": {
+                  "type": "string"
+                },
+                "start": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "end": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "capacity": {
+                  "type": "integer"
+                },
+                "available": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "open": {
+            "type": "boolean"
+          },
+          "priceOptions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "_id": {
+                  "type": "string"
+                },
+                "numberSlots": {
+                  "type": "integer"
+                },
+                "price": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BookingOrchestrator_Booking": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "courseId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "cancelled"
+            ]
+          },
+          "transactionId": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BookingOrchestrator_Reservation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "courseId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "held",
+              "completed",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "expiration": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BookingLogic_Booking": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "courseId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "cancelled"
+            ]
+          },
+          "transactionId": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BookingLogic_Reservation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "courseId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "held",
+              "completed",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "expiration": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BookingData_Bookings": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string"
+          },
+          "course": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          },
+          "reservation": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "cancelled"
+            ]
+          },
+          "transactionId": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "__v": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "course",
+          "price",
+          "transactionId",
+          "status",
+          "slots",
+          "reservation",
+          "user",
+          "_id"
+        ],
+        "description": "desc"
+      },
+      "BookingData_Course": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string"
+                },
+                "end": {
+                  "type": "string"
+                },
+                "capacity": {
+                  "type": "number"
+                },
+                "available": {
+                  "type": "number"
+                },
+                "_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "start",
+                "end",
+                "capacity",
+                "available",
+                "_id"
+              ]
+            }
+          },
+          "open": {
+            "type": "boolean"
+          },
+          "priceOptions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "numberSlots": {
+                  "type": "number"
+                },
+                "price": {
+                  "type": "string"
+                },
+                "_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "numberSlots",
+                "price",
+                "_id"
+              ]
+            }
+          },
+          "_id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "__v": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "slots",
+          "open",
+          "priceOptions",
+          "_id",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "desc"
+      },
+      "BookingData_Reservation": {
+        "type": "object",
+        "properties": {
+          "course": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "held",
+              "completed",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "expiration": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "_id": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "__v": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "course",
+          "user",
+          "slots",
+          "status",
+          "expiration",
+          "_id"
+        ],
+        "description": "dee"
+      },
+      "OAuthAdapter_InternalAssertion": {
+        "type": "object",
+        "description": "Internal assertion sent to orchestrator (not exposed via API)",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "OAuth provider name",
+            "example": "google"
+          },
+          "sub": {
+            "type": "string",
+            "description": "Subject identifier from OAuth provider"
+          },
+          "iat": {
+            "type": "integer",
+            "description": "Issued at timestamp (Unix epoch)"
+          },
+          "nonce": {
+            "type": "string",
+            "description": "Unique nonce for this authentication session",
+            "format": "uuid"
+          },
+          "signature": {
+            "type": "string",
+            "description": "HMAC-SHA256 signature of the assertion"
+          },
+          "picture": {
+            "type": "string",
+            "description": "User's profile picture URL from OAuth provider"
+          },
+          "frontendRedirectUrl": {
+            "type": "string",
+            "description": "URL where orchestrator should redirect after completing authentication"
+          }
+        }
+      }
+    },
+    "responses": {
+      "BookingOrchestrator_BadRequest": {
+        "description": "The server could not understand the request due to invalid syntax",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "badRequestExample": {
+                "summary": "Example bad request response",
+                "value": {
+                  "error": {
+                    "code": "INVALID_REQUEST",
+                    "message": "courseId and slotIds are required."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingOrchestrator_Unauthorized": {
+        "description": "Authentication is required and has failed or not been provided",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "unauthorizedExample": {
+                "summary": "Example unauthorized response",
+                "value": {
+                  "error": {
+                    "code": "UNAUTHENTICATED",
+                    "message": "Access Denied."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingOrchestrator_Forbidden": {
+        "description": "The client does not have access rights to the content",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "forbiddenErrorResponse": {
+                "summary": "Example forbidden error response",
+                "value": {
+                  "error": {
+                    "code": "ACCESS_DENIED",
+                    "message": "User do not have permission to access this reservation."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingOrchestrator_NotFound": {
+        "description": "The server cannot find the requested resource",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "notFoundErrorResponse": {
+                "summary": "Example not found error response",
+                "value": {
+                  "error": {
+                    "code": "RESERVATION_NOT_FOUND",
+                    "message": "No active reservation found for the specified user and course."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingOrchestrator_Conflict": {
+        "description": "The request could not be completed due to a conflict",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "conflictErrorResponse": {
+                "summary": "Example conflict error response",
+                "value": {
+                  "error": {
+                    "code": "RESERVATION_NOT_ACTIVE",
+                    "message": "Reservation is not active"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingOrchestrator_InternalServerError": {
+        "description": "The server encountered an unexpected condition",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "internalServerErrorResponse": {
+                "summary": "Example server error response",
+                "value": {
+                  "error": {
+                    "code": "INTERNAL_SERVER_ERROR",
+                    "message": "An unexpected error occurred while processing the request."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingOrchestrator_BadGateway": {
+        "description": "The server received an invalid response from the upstream server",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "badGatewayErrorResponse": {
+                "summary": "Example bad gateway error response",
+                "value": {
+                  "error": {
+                    "code": "DEPENDENCY_ERROR",
+                    "message": "A dependent service failed."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingOrchestrator_ServiceUnavailable": {
+        "description": "The server is currently unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "serviceUnavailableErrorResponse": {
+                "summary": "Example service unavailable error response",
+                "value": {
+                  "error": {
+                    "code": "DEPENDENCY_UNAVAILABLE",
+                    "message": "A dependent service is unavailable."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingOrchestrator_GatewayTimeout": {
+        "description": "The server did not receive a timely response from the upstream server",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "gatewayTimeoutErrorResponse": {
+                "summary": "Example gateway timeout error response",
+                "value": {
+                  "error": {
+                    "code": "DEPENDENCY_TIMEOUT",
+                    "message": "A dependent service timed out."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingOrchestrator_NoContent": {
+        "description": "The request was successful, but there is no content to return"
+      },
+      "BookingLogic_BadRequest": {
+        "description": "The server could not understand the request due to invalid syntax",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "badRequestErrorResponse": {
+                "summary": "Example bad request error response",
+                "value": {
+                  "error": {
+                    "code": "INVALID_BOOKING_DATA",
+                    "message": "Missing required booking data."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingLogic_Forbidden": {
+        "description": "The client does not have access rights to the content",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "forbiddenErrorResponse": {
+                "summary": "Example forbidden error response",
+                "value": {
+                  "error": {
+                    "code": "ACCESS_DENIED",
+                    "message": "User do not have permission to access this reservation."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingLogic_NotFound": {
+        "description": "The server cannot find the requested resource",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "notFoundErrorResponse": {
+                "summary": "Example not found error response",
+                "value": {
+                  "error": {
+                    "code": "RESERVATION_NOT_FOUND",
+                    "message": "No active reservation found for the specified user and course."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingLogic_Conflict": {
+        "description": "The request could not be completed due to a conflict",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "conflictErrorResponse": {
+                "summary": "Example conflict error response",
+                "value": {
+                  "error": {
+                    "code": "RESERVATION_NOT_ACTIVE",
+                    "message": "Reservation is not active"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingLogic_InternalServerError": {
+        "description": "The server encountered an unexpected condition",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              }
+            },
+            "examples": {
+              "internalServerErrorResponse": {
+                "summary": "Example server error response",
+                "value": {
+                  "error": {
+                    "code": "INTERNAL_SERVER_ERROR",
+                    "message": "An unexpected error occurred while processing the request."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingLogic_NoContent": {
+        "description": "The request was successful, but there is no content to return"
+      },
+      "BookingData_BadRequest": {
+        "description": "The server could not understand the request due to invalid syntax. The client should modify the request and try again.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "message"
+                  ]
+                }
+              },
+              "required": [
+                "error"
+              ]
+            },
+            "examples": {
+              "badRequestResponse": {
+                "summary": "Example bad request response",
+                "value": {
+                  "error": {
+                    "code": "INVALID_BOOKING_DATA",
+                    "message": "Invalid request parameters."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingData_InternalServerError": {
+        "description": "The server encountered an unexpected condition that prevented it from fulfilling the request. Report the issue to the support team if it persists.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            },
+            "examples": {
+              "internalServerErrorResponse": {
+                "summary": "Example internal server error response",
+                "value": {
+                  "error": {
+                    "code": "BOOKING_CREATION_FAILED",
+                    "message": "Failed to create the booking."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingData_Conflict": {
+        "description": "The request could not be completed due to a conflict with the current state of the resource. Resolve the conflict and try again.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            },
+            "examples": {
+              "Conflict": {
+                "summary": "Example conflict response",
+                "value": {
+                  "error": {
+                    "code": "INSUFFICIENT_SLOT_AVAILABILITY",
+                    "message": "Not enough space in one or more slots."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingData_Created": {
+        "description": "The request was successful, and a new resource was created.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "data"
+              ]
+            }
+          }
+        }
+      },
+      "BookingData_NotFound": {
+        "description": "The server cannot find the requested resource. The endpoint may be invalid or the resource may no longer exist.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "message"
+              ]
+            },
+            "examples": {
+              "notFoundResponse": {
+                "summary": "Example not found response",
+                "value": {
+                  "error": {
+                    "code": "RESERVATION_NOT_FOUND",
+                    "message": "The specified reservation does not exist."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingData_No Content": {
+        "description": "The request was successful, but there is no content to return in the response.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "null"
+            }
+          }
+        }
+      },
+      "OAuthAdapter_InternalServerError": {
+        "description": "The server encountered an unexpected condition",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "loginAssertionFailed": {
+                "summary": "Failed to notify orchestrator",
+                "value": {
+                  "error": {
+                    "code": "CREDENTIAL_ASSERTION_FAILED",
+                    "message": "Failed to notify authentication manager"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PayPalAdapter_BadRequest": {
+        "description": "The server could not understand the request due to invalid syntax",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "badRequestResponse": {
+                "summary": "Example bad request response",
+                "value": {
+                  "error": {
+                    "code": "MISSING_REQUIRED_DATA",
+                    "message": "Some required data is missing"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PayPalAdapter_InternalServerError": {
+        "description": "The server encountered an unexpected condition",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
+            "examples": {
+              "orderCreationError": {
+                "summary": "Order creation error",
+                "value": {
+                  "error": {
+                    "code": "PAYPAL_ORDER_CREATION_FAILED",
+                    "message": "There was an error while creating the order"
+                  }
+                }
+              },
+              "orderCaptureError": {
+                "summary": "Order capture error",
+                "value": {
+                  "error": {
+                    "code": "PAYPAL_ORDER_CAPTURE_FAILED",
+                    "message": "There was an error while capturing the order"
+                  }
+                }
+              },
+              "paymentRefundError": {
+                "summary": "Payment refund error",
+                "value": {
+                  "error": {
+                    "code": "PAYPAL_PAYMENT_REFUND_FAILED",
+                    "message": "There was an error while refunding the payment"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "BookingData_id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "securitySchemes": {
+      "BookingOrchestrator_cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "access_token"
+      }
+    }
+  }
+}
