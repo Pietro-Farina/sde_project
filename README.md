@@ -2,20 +2,19 @@
 
 A microservices-based course booking platform with PayPal payment integration and Google OAuth authentication. The system allows users to browse courses, make reservations, and complete bookings with integrated payment processing.
 
+[![API Documentation](https://img.shields.io/badge/API-DOCUMENTATION-blue?style=flat-square)](https://pietro-farina.github.io/sde_project/api-docs.html)
+
 ## 📋 Table of Contents
 
-- [API Documentation](#api-documentation)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
+- [API Documentation](#api-documentation)
 - [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
 - [Project Structure](#project-structure)
 - [Services Overview](#services-overview)
 - [Environment Configuration](#environment-configuration)
 - [Running the Application](#running-the-application)
-
-## API Documentation
-[![API Documentation](https://img.shields.io/badge/API-DOCUMENTATION-blue?style=flat-square)](https://pietro-farina.github.io/sde_project/api-docs.html)
 
 ## Architecture
 
@@ -64,6 +63,18 @@ The booking and payment process involves:
 - **Docker & Docker Compose** - Containerization
 - **Swagger/OpenAPI** - API documentation
 - **Cron** - Scheduled tasks
+
+## API Documentation
+
+The combined documentation can be read by clicking [here](https://pietro-farina.github.io/sde_project/api-docs.html).
+
+Alternatively, each service exposes OpenAPI/Swagger documentation:
+- **Booking Orchestrator**: http://localhost:3000/api-docs
+- **Booking Logic**: http://localhost:3001/api-docs
+- **Booking Data**: http://localhost:3002/api-docs
+- **OAuth Adapter**: http://localhost:3003/api-docs
+- **PayPal Adapter**: http://localhost:3004/api-docs
+
 
 ## Prerequisites
 
