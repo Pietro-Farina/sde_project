@@ -13,7 +13,6 @@ A microservices-based course booking platform with PayPal payment integration an
 - [Environment Configuration](#environment-configuration)
 - [Running the Application](#running-the-application)
 - [API Documentation](#api-documentation)
-- [Development](#development)
 
 ## Architecture
 
@@ -71,7 +70,7 @@ Before you begin, ensure you have the following installed:
 - **MongoDB**
 - **Git**
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Clone the Repository
 
