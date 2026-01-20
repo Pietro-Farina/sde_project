@@ -81,42 +81,16 @@ cd sde
 
 ### 2. Environment Setup
 
-Each service requires its own environment configuration. Copy the example files and configure them:
-
-```bash
-# Backend services
-cp backend/booking-data/.env.example backend/booking-data/.env
-cp backend/booking-logic/.env.example backend/booking-logic/.env
-cp backend/booking-orchestrator/.env.example backend/booking-orchestrator/.env
-cp backend/oauth-adapter/.env.example backend/oauth-adapter/.env
-cp backend/paypal-adapter/.env.example backend/paypal-adapter/.env
-
-# Frontend
-cp frontend/.env.example frontend/.env
-```
+Each service requires its own environment configuration. Copy the example files and configure them.
 
 See [Environment Configuration](#environment-configuration) for detailed setup.
 
 ### 3. Install Dependencies
 
-#### Using Docker (Recommended)
+#### Using Docker
 
 ```bash
 docker-compose up --build
-```
-
-#### Manual Installation
-
-```bash
-# Install backend dependencies
-cd backend/booking-data && npm install
-cd ../booking-logic && npm install
-cd ../booking-orchestrator && npm install
-cd ../oauth-adapter && npm install
-cd ../paypal-adapter && npm install
-
-# Install frontend dependencies
-cd ../../frontend && npm install
 ```
 
 ## Project Structure
