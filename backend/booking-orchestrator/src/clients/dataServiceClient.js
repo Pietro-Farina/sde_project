@@ -26,17 +26,6 @@ class DataServiceClient {
 			throw normalizeAxiosError(error, "DATA_SERVICE");
 		}
 	}
-
-	async cancelReservationById(reservationId) {
-		try {
-			const response = await axios.patch(
-				`${DATA_SERVICE_URL}/api/v1/reservations/${reservationId}/cancel`
-			);
-			return response.data.data;
-		} catch (error) {
-			throw normalizeAxiosError(error, "DATA_SERVICE");
-		}
-	}
 }
 
 module.exports = new DataServiceClient();
