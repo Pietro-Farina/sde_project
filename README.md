@@ -15,7 +15,7 @@ A microservices-based course booking platform with PayPal payment integration an
 - [API Documentation](#api-documentation)
 - [Development](#development)
 
-## 🏗️ Architecture
+## Architecture
 
 The system follows a microservices architecture with clear separation of concerns across multiple layers:
 
@@ -41,13 +41,13 @@ The booking and payment process involves:
 4. Booking confirmation and finalizaion of reservation
 5. Automatically refund if payment succeed and booking confirmation fail
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
 - **React 18** - UI framework
 - **Vite** - Build tool and dev server
 - **Redux Toolkit** - State management
-- **Material-UI** - Component library
+- **Antd** - Component library
 - **PayPal JS SDK** - Payment integration
 
 ### Backend
@@ -63,12 +63,12 @@ The booking and payment process involves:
 - **Swagger/OpenAPI** - API documentation
 - **Cron** - Scheduled tasks
 
-## 📦 Prerequisites
+## Prerequisites
 
 Before you begin, ensure you have the following installed:
 - **Node.js** (v18 or higher)
 - **Docker** and **Docker Compose**
-- **MongoDB** (or use Docker)
+- **MongoDB**
 - **Git**
 
 ## 🚀 Getting Started
@@ -120,7 +120,7 @@ cd ../paypal-adapter && npm install
 cd ../../frontend && npm install
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 sde/
@@ -138,16 +138,16 @@ sde/
 └── README.md
 ```
 
-## 🔧 Services Overview
+## Services Overview
 
 ### Booking Orchestrator
 **Port**: 3000
 
 The main entry point for the application. Handles:
-- Authentication and authorization (JWT)
+- API Gateway
 - Request routing to appropriate services
-- Response aggregation
-- CORS management
+- Orchestrate different services
+- Authentication and authorization (JWT)
 
 ### Booking Logic
 **Port**: 3001
@@ -162,7 +162,7 @@ Business logic service responsible for:
 **Port**: 3002
 
 Data persistence layer providing:
-- CRUD operations for bookings, courses, and reservations
+- CRUD operations for bookings and reservations
 - MongoDB integration
 - Data models and schemas
 - Cleanup settings
@@ -173,7 +173,6 @@ Data persistence layer providing:
 Authentication service handling:
 - Google OAuth 2.0 integration
 - User authentication flow
-- Token generation
 
 ### PayPal Adapter
 **Port**: 3004
@@ -187,8 +186,6 @@ Payment processing service for:
 
 Scheduled service that:
 - Removes expired reservations
-- Cleans up abandoned bookings
-- Maintains database hygiene
 
 ### Frontend
 **Port**: 5173 (dev) / 80 (prod)
@@ -200,7 +197,7 @@ React-based web interface featuring:
 - User authentication
 - Booking management
 
-## ⚙️ Environment Configuration
+## Environment Configuration
 
 ### Backend Services
 
@@ -252,7 +249,7 @@ VITE_OAUTH_SERVICE_URL=http://localhost:3003
 VITE_PAYPAL_CLIENT_ID=your_paypal_client_id
 ```
 
-## 🏃 Running the Application
+## Running the Application
 
 ### Development Mode
 
@@ -261,43 +258,13 @@ Using Docker Compose:
 docker-compose -f docker-compose.dev.yml up
 ```
 
-Manual startup:
-```bash
-# Terminal 1 - MongoDB
-docker run -d -p 27017:27017 mongo:latest
-
-# Terminal 2 - Booking Data Service
-cd backend/booking-data && npm run dev
-
-# Terminal 3 - Booking Logic Service
-cd backend/booking-logic && npm run dev
-
-# Terminal 4 - Booking Orchestrator
-cd backend/booking-orchestrator && npm run dev
-
-# Terminal 5 - OAuth Adapter
-cd backend/oauth-adapter && npm run dev
-
-# Terminal 6 - PayPal Adapter
-cd backend/paypal-adapter && npm run dev
-
-# Terminal 7 - Frontend
-cd frontend && npm run dev
-```
-
-### Production Mode
-
-```bash
-docker-compose up -d
-```
-
 ### Access the Application
 
 - **Frontend**: http://localhost:5173 (dev) or http://localhost (prod)
 - **Orchestrator API**: http://localhost:3000
 - **API Documentation**: http://localhost:8080
 
-## 📚 API Documentation
+## API Documentation
 
 Each service exposes OpenAPI/Swagger documentation:
 
@@ -308,48 +275,6 @@ Each service exposes OpenAPI/Swagger documentation:
 - **PayPal Adapter**: http://localhost:3004/api-docs
 
 Centralized documentation is available at: http://localhost:8080
-
-## 👨‍💻 Development
-
-### Running Tests
-
-```bash
-# Backend services
-cd backend/<service-name>
-npm test
-
-# Frontend
-cd frontend
-npm test
-```
-
-### Linting
-
-```bash
-# Frontend
-cd frontend
-npm run lint
-```
-
-### Building for Production
-
-```bash
-# Frontend
-cd frontend
-npm run build
-
-# Docker images
-docker-compose build
-```
-
-### Database Seeding
-
-To populate the database with example courses:
-
-```bash
-# The booking-data service includes example courses in src/mocks/exampleCourses.js
-# These can be imported via the API or directly through MongoDB
-```
 
 ## 🔍 Key Features
 
