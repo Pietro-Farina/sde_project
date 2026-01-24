@@ -175,7 +175,7 @@ Scheduled service that:
 - Removes expired reservations
 
 ### Frontend
-**Port**: 5173 (dev) / 80 (prod)
+**Port**: 5173 (dev)
 
 React-based web interface featuring:
 - Course browsing and selection
