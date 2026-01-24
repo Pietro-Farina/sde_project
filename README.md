@@ -154,20 +154,20 @@ Data persistence layer providing:
 - Data models and schemas
 - Cleanup settings
 
-### OAuth Adapter
-**Port**: 3003
-
-Authentication service handling:
-- Google OAuth 2.0 integration
-- User authentication flow
-
 ### PayPal Adapter
-**Port**: 3004
+**Port**: 3003
 
 Payment processing service for:
 - PayPal order creation
 - Payment capture
 - Refund processing
+
+### OAuth Adapter
+**Port**: 3004
+
+Authentication service handling:
+- Google OAuth 2.0 integration
+- User authentication flow
 
 ### Booking Cleanup Cron
 
@@ -191,48 +191,63 @@ React-based web interface featuring:
 #### Booking Orchestrator
 ```env
 PORT=3000
-JWT_SECRET=your_jwt_secret
-ALLOWED_ORIGINS=http://localhost:5173
-DATA_SERVICE_URL=http://booking-data:3002
 BUSINESS_SERVICE_URL=http://booking-logic:3001
-PAYPAL_ADAPTER_URL=http://paypal-adapter:3004
+DATA_SERVICE_URL=http://data-service:3002
+PAYPAL_ADAPTER_SERVICE_URL=http://paypal-adapter:3003
+
+ENVIRONMENT=development
+# --------- AUTHENTICATION SETTINGS --------- #
+JWT_SECRET=your_jwt_secret
+ACCESS_TTL_SECONDS=900
+REFRESH_TTL_SECONDS=604800
+
+# Public URL of adapter
+OAUTH_ADAPTER_SERVICE_URL=http://oauth-adapter:3004
+
+# Shared secret with adapter (same as adapter)
+INTERNAL_ASSERTION_SECRET=super_shared_secret_between_services
+
+# Frontend fallback redirect
+FRONTEND_REDIRECT_URL=http://localhost:5173
+# ------------------------------------------- #
 ```
 
 #### Booking Logic
 ```env
 PORT=3001
 DATA_SERVICE_URL=http://booking-data:3002
-RESERVATION_TIMEOUT=900000
 ```
 
 #### Booking Data
 ```env
 PORT=3002
-MONGODB_URI=mongodb://mongodb:27017/booking-system
-RESERVATION_EXPIRY_TIME=900000
-```
-
-#### OAuth Adapter
-```env
-PORT=3003
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-CALLBACK_URL=http://localhost:3003/auth/google/callback
-ALLOWED_ORIGINS=http://localhost:5173
+DATABASE_URI=mongodb://mongodb:27017/access-example-booking-system
 ```
 
 #### PayPal Adapter
 ```env
-PORT=3004
+PORT=3003
 PAYPAL_CLIENT_ID=your_paypal_client_id
 PAYPAL_CLIENT_SECRET=your_paypal_client_secret
 PAYPAL_MODE=sandbox
 ```
 
+#### OAuth Adapter
+```env
+PORT=3004
+
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CALLBACK_URL=http://localhost:3003/auth/google/callback
+
+INTERNAL_ASSERTION_SECRET=super_shared_secret_between_services
+ORCHESTRATOR_INTERNAL_ASSERT_URL=http://booking-orchestrator:3000/api/v1/auth/internal/assert
+ORCHESTRATOR_COMPLETE_URL=http://localhost:3000/api/v1/auth/complete
+FRONTEND_REDIRECT_URL=http://localhost:5173
+```
+
 ### Frontend
 ```env
-VITE_API_BASE_URL=http://localhost:3000
-VITE_OAUTH_SERVICE_URL=http://localhost:3003
 VITE_PAYPAL_CLIENT_ID=your_paypal_client_id
 ```
 
