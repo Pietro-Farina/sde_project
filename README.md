@@ -262,7 +262,7 @@ docker-compose -f docker-compose.dev.yml up
 
 ### Access the Application
 
-- **Frontend**: http://localhost:5173 (dev) or http://localhost (prod)
+- **Frontend**: http://localhost:5173 (dev)
 - **Orchestrator API**: http://localhost:3000
 - **API Documentation**: http://localhost:8080
 
