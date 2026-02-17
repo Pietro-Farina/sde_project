@@ -13,7 +13,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 const LoginPage = () => {
   const loginWithProvider = (provider) => {
-    window.location.href = `${BASE_URL}/api/v1/auth/login/${provider}`;
+    window.location.href = `${BASE_URL}/auth/login/${provider}`;
   };
 
   return (

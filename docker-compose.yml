@@ -39,8 +39,8 @@ services:
   # Paypal Adapter Service
   paypal-adapter:
     build:
-          context: ./backend/paypal-adapter
-      dockerfile: Dockerfile
+        context: ./backend/paypal-adapter
+        dockerfile: Dockerfile
     env_file:
       - ./backend/paypal-adapter/.env
     ports:
@@ -64,9 +64,6 @@ services:
       - ./backend/oauth-adapter/.env
     ports:
       - "3004:3004"
-    volumes:
-      - ./backend/oauth-adapter:/app
-      - /app/node_modules
     depends_on:
       data-service:
         condition: service_started
@@ -102,13 +99,10 @@ services:
       context: ./frontend
     ports:
       - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      # - /app/node_modules
     environment:
       - VITE_HOST=0.0.0.0
       # Points backed API to backend service name (Docker DNS)
-      - VITE_API_URL=http://booking-orchestrator:3000
+      - VITE_API_URL=http://booking-orchestrator:3000/api/v1
     env_file:
       - ./frontend/.env
     depends_on:
@@ -122,5 +116,17 @@ services:
       - CLEANUP_API_URL=http://data-service:3002/api/v1/reservations/cleanup
       - CLEANUP_API_KEY=your-internal-api-key # Optional, if you secure the endpoint
     depends_on:
+      data-service:
+        condition: service_healthy
+
+  # API Documentation Server
+  api-docs-server:
+    build: ./api-docs
+    ports:
+      - "4000:4000"
+    depends_on:
+      - booking-orchestrator
+      - booking-logic
       - data-service
-    restart: unless-stopped
+      - paypal-adapter
+      - oauth-adapter

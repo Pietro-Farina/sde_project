@@ -66,7 +66,7 @@ export const bookingsApiSlice = apiSlice.injectEndpoints({
                     return response.status === 201 && !result.isError
                 },
             }),
-            invalidatesTags: [{ type: 'Booking', id: 'LIST' }, { type: 'Reservation', id: 'LIST' }],
+            invalidatesTags: [{ type: 'Booking', id: 'LIST' }, { type: 'Reservation', id: 'LIST' }, { type: 'Course', id: 'LIST' }],
             transformResponse: (responseData) => {
                 console.log("FROM apiSlice: ", responseData.data)
                 return responseData.data;
