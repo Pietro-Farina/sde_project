@@ -46,7 +46,7 @@ services:
     ports:
       - "3003:3003"
     depends_on:
-      data-service:
+      booking-logic:
         condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3003/health"]
@@ -65,7 +65,7 @@ services:
     ports:
       - "3004:3004"
     depends_on:
-      data-service:
+      booking-logic:
         condition: service_started
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3004/health"]
@@ -102,7 +102,7 @@ services:
     environment:
       - VITE_HOST=0.0.0.0
       # Points backed API to backend service name (Docker DNS)
-      - VITE_API_URL=http://booking-orchestrator:3000/api/v1
+      - VITE_API_URL=http://localhost:3000/api/v1
     env_file:
       - ./frontend/.env
     depends_on:
